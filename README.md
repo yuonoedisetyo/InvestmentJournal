@@ -194,3 +194,11 @@ php artisan migrate --force
 cp -R public/* /home/insitei1/investment.insite.id/api/
 cp public/.htaccess /home/insitei1/investment.insite.id/api/
 rewrite ulang /home/insitei1/investment.insite.id/api/index.php ke versi custom
+
+cd /home/insitei1/investment_repo/backend
+composer install --no-dev --optimize-autoloader
+php artisan optimize:clear
+php artisan migrate --force
+cp -R public/* /home/insitei1/investment.insite.id/api/
+cp public/.htaccess /home/insitei1/investment.insite.id/api/
+cp deploy/index.hosting.php /home/insitei1/investment.insite.id/api/index.php
