@@ -95,7 +95,7 @@ export default function PositionsTable({ positions, onUpdateLastPrice, summary, 
               <th>Last Price</th>
               <th>Invested</th>
               
-              <th>Aksi</th>
+              {/* <th>Aksi</th> */}
             </tr>
           </thead>
           <tbody>
@@ -128,7 +128,7 @@ export default function PositionsTable({ positions, onUpdateLastPrice, summary, 
                   {formatIDR(item.invested_amount)} ({formatPercent(getPortfolioShare(item.invested_amount, summary.invested))})
                 </td>
                
-                <td className="journal-actions">
+                {/* <td className="journal-actions">
                   {editingCode === item.stock_code ? (
                     <>
                       <button type="button" className="table-btn" onClick={() => saveEdit(item.stock_code)}>
@@ -143,7 +143,7 @@ export default function PositionsTable({ positions, onUpdateLastPrice, summary, 
                       Edit Last Price
                     </button>
                   )}
-                </td>
+                </td> */}
               </tr>
             ))}
           </tbody>
