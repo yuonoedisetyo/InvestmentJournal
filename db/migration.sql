@@ -1,0 +1,5 @@
+-- Laravel migration source of truth:
+-- backend/database/migrations/*.php
+--
+-- Manual fallback:
+-- Use db/schema.sql if you need direct SQL bootstrap without artisan.
