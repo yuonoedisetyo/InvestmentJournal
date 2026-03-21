@@ -524,10 +524,13 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
         loadCapitalSummary(entry.portfolio_id),
         loadPerformanceData(entry.portfolio_id),
       ]);
-      setNotice(`Transaksi ${entry.type} untuk portfolio ${selectedPortfolio?.name || '-'} berhasil dicatat.`);
+      const message = `Transaksi ${entry.type} untuk portfolio ${selectedPortfolio?.name || '-'} berhasil dicatat.`;
+      setNotice(message);
+      return { success: true, message };
     } catch (error) {
       const message = error?.response?.data?.message || 'Gagal menyimpan transaksi ke API.';
       setNotice(message);
+      throw new Error(message);
     } finally {
       setTimeout(() => setNotice(''), 2400);
     }

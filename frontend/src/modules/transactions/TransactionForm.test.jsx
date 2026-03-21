@@ -13,27 +13,34 @@ vi.mock('../../services/api', async () => {
 });
 
 describe('TransactionForm', () => {
-  it('submits cash transaction payload', () => {
-    const onSubmit = vi.fn();
+  it('formats nominal, submits numeric payload, shows success feedback, and resets fields', async () => {
+    const onSubmit = vi.fn().mockResolvedValue({ message: 'Transaksi TOPUP berhasil dicatat.' });
 
     render(<TransactionForm portfolioId={7} onSubmit={onSubmit} />);
 
     fireEvent.change(screen.getByLabelText('Jenis Transaksi'), { target: { value: 'TOPUP' } });
     fireEvent.change(screen.getByLabelText('Nominal'), { target: { value: '500000' } });
+    expect(screen.getByLabelText('Nominal')).toHaveValue('500.000');
     fireEvent.click(screen.getByRole('button', { name: 'Simpan Transaksi' }));
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        portfolio_id: 7,
-        type: 'TOPUP',
-        amount: 500000,
-      })
-    );
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          portfolio_id: 7,
+          type: 'TOPUP',
+          amount: 500000,
+        })
+      );
+    });
+
+    expect(await screen.findByText('Transaksi TOPUP berhasil dicatat.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Jenis Transaksi')).toHaveValue('');
+    expect(screen.queryByLabelText('Nominal')).not.toBeInTheDocument();
   });
 
   it('loads stock options and submits stock transaction', async () => {
     stockApi.listMasterStocks.mockResolvedValue([{ stock_code: 'BBCA', stock_name: 'BCA' }]);
-    const onSubmit = vi.fn();
+    const onSubmit = vi.fn().mockResolvedValue({ message: 'Transaksi BUY berhasil dicatat.' });
 
     render(<TransactionForm portfolioId={9} onSubmit={onSubmit} />);
 
@@ -49,15 +56,33 @@ describe('TransactionForm', () => {
     fireEvent.change(screen.getByLabelText('Fee'), { target: { value: '1000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Simpan Transaksi' }));
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        portfolio_id: 9,
-        type: 'BUY',
-        stock_code: 'BBCA',
-        lot: 2,
-        price: 9000,
-        fee: 1000,
-      })
-    );
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          portfolio_id: 9,
+          type: 'BUY',
+          stock_code: 'BBCA',
+          lot: 2,
+          price: 9000,
+          fee: 1000,
+        })
+      );
+    });
+  });
+
+  it('shows error feedback when submit fails and resets fields', async () => {
+    const onSubmit = vi.fn().mockRejectedValue(new Error('Gagal menyimpan transaksi ke API.'));
+
+    render(<TransactionForm portfolioId={11} onSubmit={onSubmit} />);
+
+    fireEvent.change(screen.getByLabelText('Jenis Transaksi'), { target: { value: 'TOPUP' } });
+    fireEvent.change(screen.getByLabelText('Nominal'), { target: { value: '1250000' } });
+    fireEvent.change(screen.getByLabelText('Catatan'), { target: { value: 'Setor dana' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Transaksi' }));
+
+    expect(await screen.findByText('Gagal menyimpan transaksi ke API.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Jenis Transaksi')).toHaveValue('');
+    expect(screen.getByLabelText('Catatan')).toHaveValue('');
+    expect(screen.queryByLabelText('Nominal')).not.toBeInTheDocument();
   });
 });
