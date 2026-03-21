@@ -21,6 +21,7 @@ body {
   background: radial-gradient(circle at 12% 18%, #f5d0a9 0%, transparent 30%),
     radial-gradient(circle at 82% 12%, #99f6e4 0%, transparent 24%),
     var(--bg);
+  overflow-x: hidden;
 }
 
 h1,
@@ -68,6 +69,7 @@ h3 {
   position: relative;
   z-index: 2;
   animation: fade-up 450ms ease;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
 }
 
 @keyframes fade-up {
@@ -87,6 +89,7 @@ h3 {
   padding: 24px;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  overflow: hidden;
 }
 
 .header-row {
@@ -94,6 +97,10 @@ h3 {
   justify-content: space-between;
   align-items: flex-start;
   gap: 20px;
+}
+
+.header-row > * {
+  min-width: 0;
 }
 
 .header-actions {
@@ -131,6 +138,7 @@ h3 {
   margin-bottom: 0;
   max-width: 760px;
   opacity: 0.88;
+  overflow-wrap: anywhere;
 }
 
 .notice {
@@ -154,12 +162,13 @@ h3 {
   border-radius: var(--radius);
   padding: 18px;
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 .auth-shell {
   display: grid;
   place-items: center;
-  padding: 28px 16px;
+  padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom));
 }
 
 .auth-main {
@@ -174,12 +183,14 @@ h3 {
 
 .auth-hero {
   padding: 28px;
+  min-width: 0;
 }
 
 .auth-hero h1 {
   font-size: clamp(2.1rem, 5vw, 4.1rem);
   line-height: 1.02;
   max-width: 11ch;
+  overflow-wrap: anywhere;
 }
 
 .auth-hero .subtitle {
@@ -192,6 +203,7 @@ h3 {
 .auth-card {
   display: grid;
   gap: 16px;
+  min-width: 0;
 }
 
 .auth-tabs {
@@ -237,6 +249,8 @@ h3 {
   border-radius: 12px;
   padding: 11px 12px;
   font: inherit;
+  width: 100%;
+  min-width: 0;
 }
 
 .auth-submit-btn {
@@ -250,6 +264,7 @@ h3 {
   align-items: baseline;
   gap: 12px;
   margin-bottom: 14px;
+  flex-wrap: wrap;
 }
 
 .panel-head p {
@@ -318,6 +333,8 @@ h3 {
   border-radius: 10px;
   padding: 8px 10px;
   font: inherit;
+  width: 100%;
+  min-width: 0;
 }
 
 .portfolio-check {
@@ -388,6 +405,8 @@ h3 {
   border-radius: 10px;
   padding: 8px 10px;
   font: inherit;
+  width: 100%;
+  min-width: 0;
 }
 
 .full-width {
@@ -413,6 +432,7 @@ h3 {
 
 .table-wrapper {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -484,6 +504,15 @@ td input {
 
   .auth-main {
     grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .auth-hero {
+    padding: 12px 4px;
+  }
+
+  .auth-hero h1 {
+    max-width: 14ch;
   }
 }
 
@@ -491,6 +520,8 @@ td input {
   .app-main {
     width: 94vw;
     margin-top: 16px;
+    margin-bottom: 24px;
+    gap: 14px;
   }
 
   .transaction-form {
@@ -519,11 +550,87 @@ td input {
     justify-items: stretch;
   }
 
+  .header-user {
+    word-break: break-word;
+  }
+
   .header-logout-btn {
     width: 100%;
   }
 
   .auth-hero {
     padding: 10px 4px;
+  }
+
+  .auth-hero h1 {
+    font-size: clamp(1.8rem, 10vw, 2.7rem);
+    line-height: 1.08;
+    max-width: none;
+  }
+
+  .auth-hero .subtitle {
+    margin-top: 14px;
+    font-size: 0.95rem;
+  }
+
+  .auth-card,
+  .panel {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .auth-shell {
+    place-items: start center;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .auth-main {
+    gap: 14px;
+  }
+
+  .auth-tab {
+    padding: 10px 8px;
+    font-size: 0.95rem;
+  }
+
+  .table-btn {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-main {
+    width: calc(100vw - 20px);
+  }
+
+  .auth-shell {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .auth-card,
+  .panel,
+  .app-header {
+    padding: 12px;
+  }
+
+  .eyebrow {
+    font-size: 0.68rem;
+  }
+
+  .subtitle,
+  .panel-head p,
+  th,
+  td {
+    font-size: 0.86rem;
+  }
+
+  .stat-value {
+    font-size: 1.1rem;
+  }
+
+  .chart-panel .chart-wrapper {
+    min-height: 240px;
   }
 }

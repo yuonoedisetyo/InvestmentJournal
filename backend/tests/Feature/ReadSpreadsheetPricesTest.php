@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\StockPrice;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -11,11 +12,20 @@ class ReadSpreadsheetPricesTest extends TestCase
 {
     use RefreshDatabase;
 
+    private array $headers;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->headers = $this->authHeaders(User::factory()->create());
+    }
+
     public function test_it_returns_422_when_spreadsheet_url_is_missing(): void
     {
         config(['investment.spreadsheet.default_url' => null]);
 
-        $response = $this->postJson('/api/prices/read-spreadsheet', []);
+        $response = $this->withHeaders($this->headers)->postJson('/api/prices/read-spreadsheet', []);
 
         $response->assertStatus(422)
             ->assertJsonPath('error', 'Spreadsheet URL is required.');
@@ -25,7 +35,7 @@ class ReadSpreadsheetPricesTest extends TestCase
     {
         config(['investment.spreadsheet.default_url' => 'https://example.com/default.csv']);
 
-        $response = $this->postJson('/api/prices/read-spreadsheet', [
+        $response = $this->withHeaders($this->headers)->postJson('/api/prices/read-spreadsheet', [
             'spreadsheet_url' => '',
             'upsert' => true,
             'source' => 'SPREADSHEET',
@@ -44,7 +54,7 @@ class ReadSpreadsheetPricesTest extends TestCase
             ),
         ]);
 
-        $response = $this->postJson('/api/prices/read-spreadsheet', [
+        $response = $this->withHeaders($this->headers)->postJson('/api/prices/read-spreadsheet', [
             'spreadsheet_url' => 'https://example.com/prices.csv',
             'upsert' => false,
             'source' => 'SPREADSHEET_TEST',
@@ -66,7 +76,7 @@ class ReadSpreadsheetPricesTest extends TestCase
             ),
         ]);
 
-        $response = $this->postJson('/api/prices/read-spreadsheet', [
+        $response = $this->withHeaders($this->headers)->postJson('/api/prices/read-spreadsheet', [
             'spreadsheet_url' => 'https://example.com/prices.csv',
             'upsert' => true,
             'source' => 'SPREADSHEET_TEST',
@@ -96,7 +106,7 @@ class ReadSpreadsheetPricesTest extends TestCase
             throw new \RuntimeException('Connection failed');
         });
 
-        $response = $this->postJson('/api/prices/read-spreadsheet', [
+        $response = $this->withHeaders($this->headers)->postJson('/api/prices/read-spreadsheet', [
             'spreadsheet_url' => 'https://example.com/prices.csv',
             'upsert' => true,
         ]);
@@ -124,7 +134,7 @@ class ReadSpreadsheetPricesTest extends TestCase
             ),
         ]);
 
-        $response = $this->postJson('/api/prices/read-spreadsheet', [
+        $response = $this->withHeaders($this->headers)->postJson('/api/prices/read-spreadsheet', [
             'spreadsheet_url' => 'https://example.com/prices.csv',
             'upsert' => true,
             'source' => 'SPREADSHEET',
@@ -134,5 +144,12 @@ class ReadSpreadsheetPricesTest extends TestCase
             ->assertJsonPath('upserted', 1);
 
         $this->assertSame(1, StockPrice::query()->where('stock_code', 'SMDR')->count());
+    }
+
+    public function test_it_requires_authentication(): void
+    {
+        $this->postJson('/api/prices/read-spreadsheet', [
+            'spreadsheet_url' => 'https://example.com/prices.csv',
+        ])->assertStatus(401);
     }
 }

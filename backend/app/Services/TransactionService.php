@@ -10,6 +10,7 @@ use App\Repositories\PositionRepository;
 use App\Repositories\TransactionRepository;
 use App\Support\DecimalMath;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use RuntimeException;
 
 class TransactionService
@@ -337,6 +338,7 @@ class TransactionService
         $portfolioId = (int) $transaction['portfolio_id'];
         $transactionId = (int) $transaction['id'];
         $isBuy = $transaction['type'] === 'BUY';
+        $transactionDate = Carbon::parse((string) $transaction['transaction_date'])->format('Y-m-d H:i:s');
 
         $mutation = $this->cashMutationRepository->findLinkedStockMutation($userId, $portfolioId, $transactionId);
         if (! $mutation) {
@@ -347,7 +349,7 @@ class TransactionService
                 'amount' => (string) $transaction['net_amount'],
                 'reference_id' => $transactionId,
                 'description' => sprintf('Auto %s %s', $transaction['type'], $transaction['stock_code']),
-                'created_at' => $transaction['transaction_date'],
+                'created_at' => $transactionDate,
             ]);
             return;
         }
@@ -355,7 +357,7 @@ class TransactionService
         $mutation->type = $isBuy ? CashMutation::TYPE_WITHDRAW : CashMutation::TYPE_DEPOSIT;
         $mutation->amount = (string) $transaction['net_amount'];
         $mutation->description = sprintf('Auto %s %s', $transaction['type'], $transaction['stock_code']);
-        $mutation->created_at = $transaction['transaction_date'];
+        $mutation->created_at = $transactionDate;
         $this->cashMutationRepository->save($mutation);
     }
 
