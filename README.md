@@ -43,40 +43,117 @@ Backend blueprint for an investment journal with:
   - `realized_pnl = net - cost_basis`
   - Update position shares, invested amount, and realized pnl
 
-## Shared Hosting Cron
 
-No queue workers needed.
+# Investment Journal
 
-1. Configure provider in `.env`:
+Panduan singkat untuk menjalankan project ini dari nol.
 
-```bash
-PRICE_PROVIDER=alpha_vantage
-ALPHA_VANTAGE_API_KEY=your_api_key
-ALPHA_VANTAGE_SYMBOL_SUFFIX=.JK
-ALPHA_VANTAGE_REQUEST_INTERVAL_MS=12000
-```
+## Kebutuhan
 
-Optional legacy custom endpoint:
+- Docker Desktop aktif
+- Node.js 18+ dan npm
 
-```bash
-PRICE_PROVIDER=custom_endpoint
-PRICE_SYNC_ENDPOINT=https://your-service/prices
-```
+## 1. Jalankan Backend
 
-2. Call command from cron:
+Dari root project:
 
 ```bash
-php artisan prices:sync-active 1
+docker compose up --build -d
+docker compose exec app php artisan migrate
 ```
 
-or use scheduler:
+Backend yang aktif:
+
+- API Laravel: `http://localhost:8000`
+- phpMyAdmin: `http://localhost:8080`
+- MySQL host port: `3307`
+
+## 2. Jalankan Frontend
+
+Buka terminal baru:
 
 ```bash
-*/10 * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
 ```
 
-## Notes
+Frontend akan jalan di:
 
-- Use MySQL `DECIMAL` columns for all money/price values.
-- Ensure PHP BCMath extension is enabled.
-- Use Sanctum or your preferred auth to supply `request()->user()`.
+```text
+http://localhost:5173
+```
+
+Isi default [frontend/.env.example](/Users/user/Documents/project/Codex/InvestmentJournal/frontend/.env.example):
+
+```env
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+## 3. Pakai Aplikasi
+
+1. Buka `http://localhost:5173`
+2. Register akun baru dengan:
+   - Nama
+   - email atau no HP
+   - password
+3. Login
+4. Setelah login, baru dashboard bisa diakses
+
+## 4. Command Penting
+
+Lihat status container:
+
+```bash
+docker compose ps
+```
+
+Lihat log backend:
+
+```bash
+docker compose logs -f app
+```
+
+Restart backend:
+
+```bash
+docker compose restart app
+```
+
+Bersihkan cache Laravel:
+
+```bash
+docker compose exec app php artisan optimize:clear
+```
+
+## 5. Akses Database
+
+Buka:
+
+```text
+http://localhost:8080
+```
+
+Login phpMyAdmin:
+
+- Server: `mysql`
+- Username: `root`
+- Password: `root`
+
+## 6. Jika Mulai Ulang dari Nol
+
+```bash
+docker compose down
+docker compose up --build -d
+docker compose exec app php artisan migrate
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+## Struktur Singkat
+
+- [backend](/Users/user/Documents/project/Codex/InvestmentJournal/backend): Laravel API + MySQL
+- [frontend](/Users/user/Documents/project/Codex/InvestmentJournal/frontend): React + Vite

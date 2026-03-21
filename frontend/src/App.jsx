@@ -6,10 +6,321 @@ import PortfolioSelector from './modules/portfolio/PortfolioSelector';
 import PositionsTable from './modules/portfolio/PositionsTable';
 import JournalTable from './modules/transactions/JournalTable';
 import TransactionForm from './modules/transactions/TransactionForm';
-import { portfolioApi, priceApi, transactionApi } from './services/api';
+import {
+  authApi,
+  clearAuthSession,
+  portfolioApi,
+  priceApi,
+  readStoredAuthSession,
+  storeAuthSession,
+  transactionApi,
+} from './services/api';
 import { useInvestmentStore } from './store/useInvestmentStore';
 
 function App() {
+  const [authMode, setAuthMode] = useState('login');
+  const [sessionUser, setSessionUser] = useState(() => readStoredAuthSession()?.user || null);
+  const [isCheckingSession, setIsCheckingSession] = useState(() => Boolean(readStoredAuthSession()?.token));
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+  const [authNotice, setAuthNotice] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [loginForm, setLoginForm] = useState({
+    identity: '',
+    password: '',
+  });
+  const [registerForm, setRegisterForm] = useState({
+    name: '',
+    identity: '',
+    password: '',
+  });
+
+  function handleLoginInputChange(event) {
+    const { name, value } = event.target;
+    setLoginForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  function handleRegisterInputChange(event) {
+    const { name, value } = event.target;
+    setRegisterForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  useEffect(() => {
+    const storedSession = readStoredAuthSession();
+    if (!storedSession?.token) {
+      setIsCheckingSession(false);
+      return;
+    }
+
+    let active = true;
+
+    async function hydrateSession() {
+      try {
+        const data = await authApi.me();
+        if (!active) {
+          return;
+        }
+
+        const nextSession = {
+          token: storedSession.token,
+          user: data.user,
+        };
+        storeAuthSession(nextSession);
+        setSessionUser(data.user);
+      } catch {
+        clearAuthSession();
+        if (active) {
+          setSessionUser(null);
+        }
+      } finally {
+        if (active) {
+          setIsCheckingSession(false);
+        }
+      }
+    }
+
+    hydrateSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleRegister(event) {
+    event.preventDefault();
+    setAuthError('');
+    setAuthNotice('');
+
+    const name = registerForm.name.trim();
+    const identity = registerForm.identity.trim();
+    const password = registerForm.password;
+
+    if (!name || !identity || !password) {
+      setAuthError('Semua field register wajib diisi.');
+      return;
+    }
+
+    setIsSubmittingAuth(true);
+
+    try {
+      await authApi.register({
+        name,
+        identity,
+        password,
+      });
+      setAuthNotice('Register berhasil. Silakan login dengan akun baru Anda.');
+      setAuthMode('login');
+      setRegisterForm({
+        name: '',
+        identity: '',
+        password: '',
+      });
+      setLoginForm({
+        identity,
+        password: '',
+      });
+    } catch (error) {
+      const message =
+        error?.response?.data?.errors?.identity?.[0] ||
+        error?.response?.data?.message ||
+        'Register gagal. Silakan coba lagi.';
+      setAuthError(message);
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  }
+
+  async function handleLogin(event) {
+    event.preventDefault();
+    setAuthError('');
+    setAuthNotice('');
+
+    const identity = loginForm.identity.trim();
+    const password = loginForm.password;
+
+    if (!identity || !password) {
+      setAuthError('Email / nohp dan password wajib diisi.');
+      return;
+    }
+
+    setIsSubmittingAuth(true);
+
+    try {
+      const data = await authApi.login({
+        identity,
+        password,
+      });
+      const nextSession = {
+        token: data.token,
+        user: data.user,
+      };
+      storeAuthSession(nextSession);
+      setSessionUser(data.user);
+      setLoginForm({
+        identity: '',
+        password: '',
+      });
+    } catch (error) {
+      const message =
+        error?.response?.data?.errors?.identity?.[0] ||
+        error?.response?.data?.message ||
+        'Login gagal. Periksa email / nohp dan password Anda.';
+      setAuthError(message);
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await authApi.logout();
+    } catch {
+      // Clear local session even when logout request fails.
+    } finally {
+      clearAuthSession();
+      setSessionUser(null);
+      setAuthMode('login');
+      setAuthNotice('Sesi login telah berakhir.');
+      setAuthError('');
+    }
+  }
+
+  if (isCheckingSession) {
+    return (
+      <div className="app-shell auth-shell">
+        <div className="ambient ambient-a" />
+        <div className="ambient ambient-b" />
+        <main className="auth-main">
+          <section className="auth-card panel">
+            <h2>Memeriksa sesi login...</h2>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  if (!sessionUser) {
+    return (
+      <div className="app-shell auth-shell">
+        <div className="ambient ambient-a" />
+        <div className="ambient ambient-b" />
+        <main className="auth-main">
+          <section className="auth-hero">
+            <p className="eyebrow">Investment Journal</p>
+            <h1>Login dulu untuk akses dashboard investasi Anda.</h1>
+            <p className="subtitle">
+              Register hanya butuh nama, email / nohp, dan password. Setelah login, seluruh fitur aplikasi baru
+              akan terbuka.
+            </p>
+          </section>
+
+          <section className="auth-card panel">
+            <div className="auth-tabs" role="tablist" aria-label="Pilih halaman autentikasi">
+              <button
+                type="button"
+                className={`auth-tab ${authMode === 'login' ? 'active' : ''}`}
+                onClick={() => {
+                  setAuthMode('login');
+                  setAuthError('');
+                  setAuthNotice('');
+                }}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                className={`auth-tab ${authMode === 'register' ? 'active' : ''}`}
+                onClick={() => {
+                  setAuthMode('register');
+                  setAuthError('');
+                  setAuthNotice('');
+                }}
+              >
+                Register
+              </button>
+            </div>
+
+            {authNotice ? <div className="notice">{authNotice}</div> : null}
+            {authError ? <div className="notice notice-error">{authError}</div> : null}
+
+            {authMode === 'login' ? (
+              <form className="auth-form" onSubmit={handleLogin}>
+                <label>
+                  Email / nohp
+                  <input
+                    type="text"
+                    name="identity"
+                    placeholder="nama@email.com atau 0812xxxx"
+                    value={loginForm.identity}
+                    onChange={handleLoginInputChange}
+                  />
+                </label>
+                <label>
+                  Password
+                  <input
+                    type="password"
+                    name="password"
+                    placeholder="Masukkan password"
+                    value={loginForm.password}
+                    onChange={handleLoginInputChange}
+                  />
+                </label>
+                <button type="submit" className="submit-btn auth-submit-btn" disabled={isSubmittingAuth}>
+                  {isSubmittingAuth ? 'Memproses...' : 'Masuk ke aplikasi'}
+                </button>
+              </form>
+            ) : (
+              <form className="auth-form" onSubmit={handleRegister}>
+                <label>
+                  Nama
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Nama lengkap"
+                    value={registerForm.name}
+                    onChange={handleRegisterInputChange}
+                  />
+                </label>
+                <label>
+                  Email / nohp
+                  <input
+                    type="text"
+                    name="identity"
+                    placeholder="nama@email.com atau 0812xxxx"
+                    value={registerForm.identity}
+                    onChange={handleRegisterInputChange}
+                  />
+                </label>
+                <label>
+                  Password
+                  <input
+                    type="password"
+                    name="password"
+                    placeholder="Buat password"
+                    value={registerForm.password}
+                    onChange={handleRegisterInputChange}
+                  />
+                </label>
+                <button type="submit" className="submit-btn auth-submit-btn" disabled={isSubmittingAuth}>
+                  {isSubmittingAuth ? 'Memproses...' : 'Buat akun'}
+                </button>
+              </form>
+            )}
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  return <AuthenticatedApp sessionUser={sessionUser} onLogout={handleLogout} />;
+}
+
+function AuthenticatedApp({ sessionUser, onLogout }) {
   const {
     portfolios,
     selectedPortfolio,
@@ -336,7 +647,7 @@ function App() {
       <div className="ambient ambient-a" />
       <div className="ambient ambient-b" />
       <main className="app-main">
-        <Header />
+        <Header userName={sessionUser?.name} onLogout={onLogout} />
 
         {notice ? <div className="notice">{notice}</div> : null}
 
@@ -353,8 +664,6 @@ function App() {
           <PerformanceChart data={performanceData} />
         </section>
         <SummaryCards summary={summary} cashBalance={cashBalance} capitalSummary={capitalSummary} />
-
-
         <PositionsTable
           summary={summary}
           positions={positions}

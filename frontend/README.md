@@ -20,8 +20,10 @@ npm run preview
 Create `.env` in `frontend/`:
 
 ```env
-VITE_API_BASE_URL=http://localhost:8000/api
+VITE_API_BASE_URL=http://localhost:8000
 ```
+
+`/api` tidak wajib ditulis karena frontend akan menambahkan suffix itu otomatis bila belum ada.
 
 ## Scope
 

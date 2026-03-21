@@ -4,11 +4,33 @@ const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const normalizedBaseUrl = rawBaseUrl.endsWith('/api')
   ? rawBaseUrl
   : `${rawBaseUrl.replace(/\/+$/, '')}/api`;
+const AUTH_STORAGE_KEY = 'investment-journal-auth-user';
 
 const api = axios.create({
   baseURL: normalizedBaseUrl,
   timeout: 15000,
 });
+
+export function readStoredAuthSession() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || 'null');
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function storeAuthSession(session) {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+  if (session?.token) {
+    localStorage.setItem('token', session.token);
+  }
+}
+
+export function clearAuthSession() {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  localStorage.removeItem('token');
+}
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -17,6 +39,35 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      clearAuthSession();
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const authApi = {
+  async register(payload) {
+    const { data } = await api.post('/auth/register', payload);
+    return data;
+  },
+  async login(payload) {
+    const { data } = await api.post('/auth/login', payload);
+    return data;
+  },
+  async me() {
+    const { data } = await api.get('/auth/me');
+    return data;
+  },
+  async logout() {
+    const { data } = await api.post('/auth/logout');
+    return data;
+  },
+};
 
 export const portfolioApi = {
   async listPortfolios() {
