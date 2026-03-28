@@ -94,4 +94,29 @@ class TransactionApiTest extends TestCase
         ])->assertStatus(422)
             ->assertJsonPath('message', 'Sell quantity exceeds available shares.');
     }
+
+    public function test_it_accepts_iso8601_transaction_date_for_buy_cash_mutation(): void
+    {
+        $user = User::factory()->create();
+        $portfolio = $this->createPortfolio($user);
+        $headers = $this->authHeaders($user);
+
+        $response = $this->withHeaders($headers)->postJson('/api/transactions/buy', [
+            'portfolio_id' => $portfolio->id,
+            'stock_code' => 'ABMM',
+            'lot' => 1,
+            'price' => 3094.64,
+            'fee' => 0,
+            'transaction_date' => '2026-03-23T00:00:00.000000Z',
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('cash_mutations', [
+            'portfolio_id' => $portfolio->id,
+            'type' => 'WITHDRAW',
+            'description' => 'Auto BUY ABMM',
+            'created_at' => '2026-03-23 00:00:00',
+        ]);
+    }
 }

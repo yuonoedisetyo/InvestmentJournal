@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class CashMutation extends Model
 {
@@ -27,7 +28,18 @@ class CashMutation extends Model
 
     protected $casts = [
         'amount' => 'decimal:4',
+        'created_at' => 'datetime',
     ];
 
     public $timestamps = false;
+
+    public function setCreatedAtAttribute($value): void
+    {
+        if ($value === null || $value === '') {
+            $this->attributes['created_at'] = $value;
+            return;
+        }
+
+        $this->attributes['created_at'] = Carbon::parse($value)->format('Y-m-d H:i:s');
+    }
 }

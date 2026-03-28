@@ -91,7 +91,32 @@ Isi default [frontend/.env.example](/Users/user/Documents/project/Codex/Investme
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-## 3. Pakai Aplikasi
+## 3. Jalankan Frontend React Native
+
+Folder mobile ada di [mobile](/Users/user/Documents/project/Codex/InvestmentJournal/mobile) dan memakai Expo.
+
+```bash
+cd mobile
+npm install
+cp .env.example .env
+npx expo start
+```
+
+Kalau ingin langsung set API URL saat start:
+
+```bash
+cd mobile
+npm install
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8000 npx expo start
+```
+
+Catatan koneksi mobile:
+
+- iPhone simulator di Mac biasanya bisa memakai `http://localhost:8000`
+- Android emulator biasanya memakai `http://10.0.2.2:8000`
+- device fisik biasanya perlu IP lokal laptop, misalnya `http://192.168.1.10:8000`
+
+## 4. Pakai Aplikasi Web
 
 1. Buka `http://localhost:5173`
 2. Register akun baru dengan:
@@ -101,7 +126,7 @@ VITE_API_BASE_URL=http://localhost:8000
 3. Login
 4. Setelah login, baru dashboard bisa diakses
 
-## 4. Command Penting
+## 5. Command Penting
 
 Lihat status container:
 
@@ -127,7 +152,7 @@ Bersihkan cache Laravel:
 docker compose exec app php artisan optimize:clear
 ```
 
-## 5. Akses Database
+## 6. Akses Database
 
 Buka:
 
@@ -141,7 +166,7 @@ Login phpMyAdmin:
 - Username: `root`
 - Password: `root`
 
-## 6. Jika Mulai Ulang dari Nol
+## 7. Jika Mulai Ulang dari Nol
 
 ```bash
 docker compose down
@@ -157,3 +182,4 @@ npm run dev
 
 - [backend](/Users/user/Documents/project/Codex/InvestmentJournal/backend): Laravel API + MySQL
 - [frontend](/Users/user/Documents/project/Codex/InvestmentJournal/frontend): React + Vite
+- [mobile](/Users/user/Documents/project/Codex/InvestmentJournal/mobile): React Native + Expo
