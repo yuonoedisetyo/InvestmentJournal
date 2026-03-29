@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatIDR } from '../../utils/format';
+
+const PAGE_SIZE = 10;
 
 export default function JournalTable({ data, onEdit, onDelete }) {
   const [editingKey, setEditingKey] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [typeFilter, setTypeFilter] = useState('');
+  const [stockCodeFilter, setStockCodeFilter] = useState('');
   const [form, setForm] = useState({
     transaction_date: '',
     lot: 0,
@@ -11,6 +16,31 @@ export default function JournalTable({ data, onEdit, onDelete }) {
     fee: 0,
     notes: '',
   });
+
+  const typeOptions = Array.from(new Set(data.map((item) => item.type).filter(Boolean)));
+  const normalizedStockCodeFilter = stockCodeFilter.trim().toUpperCase();
+  const filteredData = data.filter((item) => {
+    const matchesType = typeFilter ? item.type === typeFilter : true;
+    const matchesStockCode = normalizedStockCodeFilter
+      ? String(item.stock_code ?? '').toUpperCase().includes(normalizedStockCodeFilter)
+      : true;
+    return matchesType && matchesStockCode;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * PAGE_SIZE;
+  const visibleRows = filteredData.slice(startIndex, startIndex + PAGE_SIZE);
+
+  useEffect(() => {
+    if (currentPage !== safePage) {
+      setCurrentPage(safePage);
+    }
+  }, [currentPage, safePage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [typeFilter, normalizedStockCodeFilter]);
 
   function startEdit(item) {
     setEditingKey(item.row_key);
@@ -65,6 +95,62 @@ export default function JournalTable({ data, onEdit, onDelete }) {
       <div className="panel-head">
         <h2>Jurnal Transaksi</h2>
       </div>
+      {data.length > 0 ? (
+        <div className="panel-head">
+          <label>
+            Filter Jenis
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+              <option value="">Semua</option>
+              {typeOptions.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Filter Stock Code
+            <input
+              type="text"
+              value={stockCodeFilter}
+              onChange={(event) => setStockCodeFilter(event.target.value.toUpperCase())}
+              placeholder="Contoh: BBCA"
+            />
+          </label>
+        </div>
+      ) : null}
+      {filteredData.length > 0 ? (
+        <div className="panel-head">
+          <span>
+            Menampilkan {startIndex + 1}-{Math.min(startIndex + visibleRows.length, filteredData.length)} dari {filteredData.length} transaksi
+          </span>
+          {totalPages > 1 ? (
+            <div className="journal-actions">
+              <button
+                type="button"
+                className="table-btn table-btn-muted"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={safePage === 1}
+              >
+                Sebelumnya
+              </button>
+              <span>
+                Halaman {safePage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                className="table-btn table-btn-muted"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={safePage === totalPages}
+              >
+                Berikutnya
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : data.length > 0 ? (
+        <div className="notice notice-error">Tidak ada transaksi yang cocok dengan filter saat ini.</div>
+      ) : null}
       <div className="table-wrapper">
         <table>
           <thead>
@@ -80,12 +166,12 @@ export default function JournalTable({ data, onEdit, onDelete }) {
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 ? (
+            {filteredData.length === 0 ? (
               <tr>
-                <td colSpan="8">Belum ada transaksi.</td>
+                <td colSpan="8">{data.length === 0 ? 'Belum ada transaksi.' : 'Tidak ada data yang cocok dengan filter.'}</td>
               </tr>
             ) : (
-              data.map((item) => (
+              visibleRows.map((item) => (
                 <tr key={item.row_key}>
                   <td>
                     {editingKey === item.row_key ? (
@@ -111,7 +197,7 @@ export default function JournalTable({ data, onEdit, onDelete }) {
                         <input type="number" name="price" min="1" value={form.price} onChange={handleChange} />
                       )
                     ) : (
-                      formatIDR(item.amount || item.price || 0)
+                      formatIDR(item.entry_type === 'CASH' || item.entry_type === 'DIVIDEND' ? item.amount : item.price)
                     )}
                   </td>
                   <td>

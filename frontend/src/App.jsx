@@ -471,7 +471,24 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
     }
   }
 
+  async function refreshPortfolioData(portfolioId = selectedPortfolioId) {
+    if (!portfolioId) {
+      return;
+    }
+
+    await Promise.all([
+      loadPositions(portfolioId),
+      loadJournal(portfolioId),
+      loadCashBalance(portfolioId),
+      loadCapitalSummary(portfolioId),
+      loadPerformanceData(portfolioId),
+    ]);
+  }
+
   async function handleSubmitTransaction(entry) {
+    const skipRefresh = Boolean(entry.__skipRefresh);
+    const skipNotice = Boolean(entry.__skipNotice);
+
     try {
       if (entry.type === 'BUY') {
         await transactionApi.buy({
@@ -517,22 +534,25 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
         });
       }
 
-      await Promise.all([
-        loadPositions(entry.portfolio_id),
-        loadJournal(entry.portfolio_id),
-        loadCashBalance(entry.portfolio_id),
-        loadCapitalSummary(entry.portfolio_id),
-        loadPerformanceData(entry.portfolio_id),
-      ]);
+      if (!skipRefresh) {
+        await refreshPortfolioData(entry.portfolio_id);
+      }
+
       const message = `Transaksi ${entry.type} untuk portfolio ${selectedPortfolio?.name || '-'} berhasil dicatat.`;
-      setNotice(message);
+      if (!skipNotice) {
+        setNotice(message);
+      }
       return { success: true, message };
     } catch (error) {
       const message = error?.response?.data?.message || 'Gagal menyimpan transaksi ke API.';
-      setNotice(message);
+      if (!skipNotice) {
+        setNotice(message);
+      }
       throw new Error(message);
     } finally {
-      setTimeout(() => setNotice(''), 2400);
+      if (!skipNotice) {
+        setTimeout(() => setNotice(''), 2400);
+      }
     }
   }
 
@@ -663,7 +683,11 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
         />
 
         <section className="two-col">
-          <TransactionForm portfolioId={selectedPortfolioId} onSubmit={handleSubmitTransaction} />
+          <TransactionForm
+            portfolioId={selectedPortfolioId}
+            onSubmit={handleSubmitTransaction}
+            onBulkComplete={refreshPortfolioData}
+          />
           <PerformanceChart data={performanceData} />
         </section>
         <SummaryCards summary={summary} cashBalance={cashBalance} capitalSummary={capitalSummary} />
