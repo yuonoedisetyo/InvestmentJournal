@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import PortfolioSelector from './PortfolioSelector';
 
 describe('PortfolioSelector', () => {
   it('calls onChange when a portfolio chip is clicked', () => {
     const onChange = vi.fn();
+    const onOpenCreateForm = vi.fn();
 
     render(
       <PortfolioSelector
@@ -13,7 +14,7 @@ describe('PortfolioSelector', () => {
         ]}
         selectedPortfolioId={1}
         onChange={onChange}
-        onCreate={vi.fn()}
+        onOpenCreateForm={onOpenCreateForm}
       />
     );
 
@@ -22,33 +23,20 @@ describe('PortfolioSelector', () => {
     expect(onChange).toHaveBeenCalledWith(2);
   });
 
-  it('submits create form payload', async () => {
-    const onCreate = vi.fn().mockResolvedValue({});
+  it('opens separate create portfolio page', () => {
+    const onOpenCreateForm = vi.fn();
 
     render(
       <PortfolioSelector
         portfolios={[]}
         selectedPortfolioId={null}
         onChange={vi.fn()}
-        onCreate={onCreate}
+        onOpenCreateForm={onOpenCreateForm}
       />
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Contoh: Growth Portfolio'), {
-      target: { value: 'Dividend Portfolio' },
-    });
-    fireEvent.change(screen.getByPlaceholderText('0'), {
-      target: { value: '250000' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Buat Portfolio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Portfolio' }));
 
-    await waitFor(() => {
-      expect(onCreate).toHaveBeenCalledWith({
-        name: 'Dividend Portfolio',
-        currency: 'IDR',
-        initial_capital: 250000,
-        is_active: true,
-      });
-    });
+    expect(onOpenCreateForm).toHaveBeenCalledTimes(1);
   });
 });

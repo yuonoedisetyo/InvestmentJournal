@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Header from './components/Header';
 import PerformanceChart from './modules/dashboard/PerformanceChart';
 import SummaryCards from './modules/dashboard/SummaryCards';
+import PortfolioForm from './modules/portfolio/PortfolioForm';
 import PortfolioSelector from './modules/portfolio/PortfolioSelector';
 import PositionsTable from './modules/portfolio/PositionsTable';
 import JournalTable from './modules/transactions/JournalTable';
@@ -336,6 +337,7 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
   } = useInvestmentStore();
 
   const [notice, setNotice] = useState('');
+  const [activeView, setActiveView] = useState('dashboard');
   const [journalData, setJournalData] = useState([]);
   const [cashBalance, setCashBalance] = useState(0);
   const [capitalSummary, setCapitalSummary] = useState(null);
@@ -678,27 +680,63 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
           portfolios={portfolios}
           selectedPortfolioId={selectedPortfolioId}
           onChange={handleChangePortfolio}
-          onCreate={handleCreatePortfolio}
-          creating={isCreatingPortfolio}
+          onOpenCreateForm={() => setActiveView('portfolio-create')}
+          showCreateButton={activeView !== 'transactions'}
         />
 
-        <section className="two-col">
-          <TransactionForm
-            portfolioId={selectedPortfolioId}
-            onSubmit={handleSubmitTransaction}
-            onBulkComplete={refreshPortfolioData}
-          />
-          <PerformanceChart data={performanceData} />
-        </section>
-        <SummaryCards summary={summary} cashBalance={cashBalance} capitalSummary={capitalSummary} />
-        <PositionsTable
-          summary={summary}
-          positions={positions}
-          onUpdateLastPrice={handleUpdateLastPrice}
-          onSyncSpreadsheet={handleSyncSpreadsheet}
-          syncing={isSyncingSpreadsheet}
-        />
-        <JournalTable data={journalData} onEdit={handleEditJournal} onDelete={handleDeleteJournal} />
+        {activeView === 'portfolio-create' ? (
+          <>
+            <section className="panel">
+              <div className="panel-head">
+                <h2>Form Portfolio</h2>
+                <div className="panel-head-actions">
+                  <button type="button" className="table-btn table-btn-muted" onClick={() => setActiveView('dashboard')}>
+                    Kembali ke Dashboard
+                  </button>
+                </div>
+              </div>
+            </section>
+            <PortfolioForm onSubmit={handleCreatePortfolio} creating={isCreatingPortfolio} />
+          </>
+        ) : activeView === 'transactions' ? (
+          <>
+            <section className="panel">
+              <div className="panel-head">
+                <h2>Form Transaksi</h2>
+                <div className="panel-head-actions">
+                  <button type="button" className="table-btn table-btn-muted" onClick={() => setActiveView('dashboard')}>
+                    Kembali ke Dashboard
+                  </button>
+                </div>
+              </div>
+            </section>
+            <TransactionForm
+              portfolioId={selectedPortfolioId}
+              onSubmit={handleSubmitTransaction}
+              onBulkComplete={refreshPortfolioData}
+            />
+          </>
+        ) : (
+          <>
+            <section className="two-col">
+              <PerformanceChart data={performanceData} />
+            </section>
+            <SummaryCards summary={summary} cashBalance={cashBalance} capitalSummary={capitalSummary} />
+            <PositionsTable
+              summary={summary}
+              positions={positions}
+              onUpdateLastPrice={handleUpdateLastPrice}
+              onSyncSpreadsheet={handleSyncSpreadsheet}
+              syncing={isSyncingSpreadsheet}
+            />
+            <JournalTable
+              data={journalData}
+              onEdit={handleEditJournal}
+              onDelete={handleDeleteJournal}
+              onOpenTransactionForm={() => setActiveView('transactions')}
+            />
+          </>
+        )}
       </main>
     </div>
   );

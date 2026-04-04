@@ -3,7 +3,7 @@ import { formatIDR } from '../../utils/format';
 
 const PAGE_SIZE = 10;
 
-export default function JournalTable({ data, onEdit, onDelete }) {
+export default function JournalTable({ data, onEdit, onDelete, onOpenTransactionForm }) {
   const [editingKey, setEditingKey] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState('');
@@ -94,6 +94,11 @@ export default function JournalTable({ data, onEdit, onDelete }) {
     <section className="panel">
       <div className="panel-head">
         <h2>Jurnal Transaksi</h2>
+        <div className="panel-head-actions">
+          <button type="button" className="table-btn" onClick={onOpenTransactionForm}>
+            Input Transaksi
+          </button>
+        </div>
       </div>
       {data.length > 0 ? (
         <div className="panel-head">
@@ -159,7 +164,8 @@ export default function JournalTable({ data, onEdit, onDelete }) {
               <th>Jenis</th>
               <th>Kode</th>
               <th>Lot</th>
-              <th>Harga/Nominal</th>
+              <th>Harga per Saham</th>
+              <th>Total Nominal</th>
               <th>Fee</th>
               <th>Catatan</th>
               <th>Aksi</th>
@@ -168,7 +174,7 @@ export default function JournalTable({ data, onEdit, onDelete }) {
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan="8">{data.length === 0 ? 'Belum ada transaksi.' : 'Tidak ada data yang cocok dengan filter.'}</td>
+                <td colSpan="9">{data.length === 0 ? 'Belum ada transaksi.' : 'Tidak ada data yang cocok dengan filter.'}</td>
               </tr>
             ) : (
               visibleRows.map((item) => (
@@ -191,13 +197,24 @@ export default function JournalTable({ data, onEdit, onDelete }) {
                   </td>
                   <td>
                     {editingKey === item.row_key ? (
+                      item.entry_type === 'STOCK' ? (
+                        <input type="number" name="price" min="1" value={form.price} onChange={handleChange} />
+                      ) : (
+                        '-'
+                      )
+                    ) : (
+                      item.entry_type === 'STOCK' ? formatIDR(item.price) : '-'
+                    )}
+                  </td>
+                  <td>
+                    {editingKey === item.row_key ? (
                       item.entry_type === 'CASH' || item.entry_type === 'DIVIDEND' ? (
                         <input type="number" name="amount" min="1" value={form.amount} onChange={handleChange} />
                       ) : (
-                        <input type="number" name="price" min="1" value={form.price} onChange={handleChange} />
+                        formatIDR(item.amount || 0)
                       )
                     ) : (
-                      formatIDR(item.entry_type === 'CASH' || item.entry_type === 'DIVIDEND' ? item.amount : item.price)
+                      formatIDR(item.amount || 0)
                     )}
                   </td>
                   <td>

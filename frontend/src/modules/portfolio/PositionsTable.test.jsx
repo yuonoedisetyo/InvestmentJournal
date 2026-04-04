@@ -29,7 +29,10 @@ describe('PositionsTable', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Sync Harga' }));
 
+    expect(screen.getByText('No')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('BBCA')).toBeInTheDocument();
+    expect(screen.getByText(/\(5\.56%\)/)).toBeInTheDocument();
     expect(props.onSyncSpreadsheet).toHaveBeenCalledTimes(1);
   });
 

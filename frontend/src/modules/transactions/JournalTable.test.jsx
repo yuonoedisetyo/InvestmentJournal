@@ -8,7 +8,7 @@ describe('JournalTable', () => {
     expect(screen.getByText('Belum ada transaksi.')).toBeInTheDocument();
   });
 
-  it('shows stock price in the journal table', () => {
+  it('shows stock price per share and total nominal in the journal table', () => {
     render(
       <JournalTable
         data={[
@@ -33,6 +33,7 @@ describe('JournalTable', () => {
 
     expect(screen.getByText('BBCA')).toBeInTheDocument();
     expect(screen.getByText(/Rp\s*9\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/Rp\s*1\.800\.000/)).toBeInTheDocument();
   });
 
   it('edits a stock journal row', async () => {

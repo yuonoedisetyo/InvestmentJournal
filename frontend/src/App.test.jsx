@@ -63,14 +63,27 @@ vi.mock('./modules/dashboard/PerformanceChart', () => ({
 vi.mock('./modules/dashboard/SummaryCards', () => ({
   default: () => <div>SummaryCards</div>,
 }));
+vi.mock('./modules/portfolio/PortfolioForm', () => ({
+  default: () => <div>PortfolioForm</div>,
+}));
 vi.mock('./modules/portfolio/PortfolioSelector', () => ({
-  default: () => <div>PortfolioSelector</div>,
+  default: ({ onOpenCreateForm, showCreateButton = true }) => (
+    <div>
+      <div>PortfolioSelector</div>
+      {showCreateButton ? <button onClick={onOpenCreateForm}>Add Portfolio</button> : null}
+    </div>
+  ),
 }));
 vi.mock('./modules/portfolio/PositionsTable', () => ({
   default: () => <div>PositionsTable</div>,
 }));
 vi.mock('./modules/transactions/JournalTable', () => ({
-  default: () => <div>JournalTable</div>,
+  default: ({ onOpenTransactionForm }) => (
+    <div>
+      <div>JournalTable</div>
+      <button onClick={onOpenTransactionForm}>Input Transaksi</button>
+    </div>
+  ),
 }));
 vi.mock('./modules/transactions/TransactionForm', () => ({
   default: () => <div>TransactionForm</div>,
@@ -149,6 +162,64 @@ describe('App', () => {
 
     expect(screen.getByText('Header Yedi')).toBeInTheDocument();
     expect(screen.getByText('PortfolioSelector')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Portfolio' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Input Transaksi' })).toBeInTheDocument();
+    expect(screen.queryByText('TransactionForm')).not.toBeInTheDocument();
+  });
+
+  it('can switch to portfolio form page after login', async () => {
+    const { default: App } = await import('./App');
+    mockAuthApi.login.mockResolvedValue({
+      token: 'token-789',
+      user: { id: 3, name: 'Raka', identity: 'raka@example.com' },
+    });
+
+    render(<App />);
+
+    const identityInputs = screen.getAllByPlaceholderText('nama@email.com atau 0812xxxx');
+    fireEvent.change(identityInputs[0], { target: { value: 'raka@example.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Masukkan password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Masuk ke aplikasi' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Header Raka')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Portfolio' }));
+
+    expect(screen.getByText('PortfolioForm')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Kembali ke Dashboard' })).toBeInTheDocument();
+    expect(screen.queryByText('PerformanceChart')).not.toBeInTheDocument();
+  });
+
+  it('can switch to transaction input page after login', async () => {
+    const { default: App } = await import('./App');
+    mockAuthApi.login.mockResolvedValue({
+      token: 'token-456',
+      user: { id: 2, name: 'Dian', identity: 'dian@example.com' },
+    });
+
+    render(<App />);
+
+    const identityInputs = screen.getAllByPlaceholderText('nama@email.com atau 0812xxxx');
+    fireEvent.change(identityInputs[0], { target: { value: 'dian@example.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Masukkan password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Masuk ke aplikasi' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Header Dian')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Input Transaksi' }));
+
+    expect(screen.getByText('TransactionForm')).toBeInTheDocument();
+    expect(screen.queryByText('PerformanceChart')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Kembali ke Dashboard' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add Portfolio' })).not.toBeInTheDocument();
   });
 
   it('hydrates stored session and can logout', async () => {

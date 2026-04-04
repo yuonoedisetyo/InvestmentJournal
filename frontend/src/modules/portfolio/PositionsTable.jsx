@@ -7,6 +7,15 @@ export default function PositionsTable({ positions, onUpdateLastPrice, summary, 
   const [draftPrice, setDraftPrice] = useState('');
   const sortedPositions = [...positions].sort((a, b) => Number(b.market_value ?? 0) - Number(a.market_value ?? 0));
 
+  function getUnrealizedPercent(item) {
+    const investedAmount = Number(item.invested_amount ?? 0);
+    if (!Number.isFinite(investedAmount) || investedAmount <= 0) {
+      return 0;
+    }
+
+    return (Number(item.unrealized_pnl ?? 0) / investedAmount) * 100;
+  }
+
   function startEdit(item) {
     setEditingCode(item.stock_code);
     setDraftPrice(String(item.last_price ?? ''));
@@ -56,6 +65,7 @@ export default function PositionsTable({ positions, onUpdateLastPrice, summary, 
         <table>
           <thead>
             <tr>
+              <th>No</th>
               <th>Kode</th>
               <th>Lot</th>
               <th>Avg Price</th>
@@ -67,8 +77,9 @@ export default function PositionsTable({ positions, onUpdateLastPrice, summary, 
             </tr>
           </thead>
           <tbody>
-            {sortedPositions.map((item) => (
+            {sortedPositions.map((item, index) => (
               <tr key={item.stock_code}>
+                <td>{index + 1}</td>
                 <td>{item.stock_code}</td>
                 <td>{item.total_shares / 100}</td>
                 <td>{formatIDR(item.average_price)}</td>
@@ -87,7 +98,9 @@ export default function PositionsTable({ positions, onUpdateLastPrice, summary, 
                 </td>
                 <td>{formatIDR(item.invested_amount)}</td>
                 <td>{formatIDR(item.market_value)}</td>
-                <td className={Number(item.unrealized_pnl) >= 0 ? 'profit' : 'loss'}>{formatIDR(item.unrealized_pnl)}</td>
+                <td className={Number(item.unrealized_pnl) >= 0 ? 'profit' : 'loss'}>
+                  {formatIDR(item.unrealized_pnl)} ({formatPercent(getUnrealizedPercent(item))})
+                </td>
                 <td className="journal-actions">
                   {editingCode === item.stock_code ? (
                     <>
