@@ -54,6 +54,16 @@ class PortfolioApiTest extends TestCase
             'dividend_income' => '0.0000',
         ]);
 
+        PortfolioPosition::query()->create([
+            'portfolio_id' => $firstId,
+            'stock_code' => 'TLKM',
+            'total_shares' => 0,
+            'average_price' => '3000.00000000',
+            'invested_amount' => '0.0000',
+            'realized_pnl' => '0.0000',
+            'dividend_income' => '0.0000',
+        ]);
+
         StockPrice::query()->create([
             'stock_code' => 'BBCA',
             'price' => '9500.0000',
@@ -91,7 +101,8 @@ class PortfolioApiTest extends TestCase
         $this->withHeaders($headers)->getJson("/api/portfolios/{$firstId}/positions")
             ->assertOk()
             ->assertJsonPath('0.stock_code', 'BBCA')
-            ->assertJsonPath('0.last_price', '9500.00000000');
+            ->assertJsonPath('0.last_price', '9500.00000000')
+            ->assertJsonCount(1);
 
         $this->withHeaders($headers)->getJson("/api/portfolios/{$firstId}/cash-balance")
             ->assertOk()

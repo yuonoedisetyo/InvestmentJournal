@@ -23,6 +23,7 @@ class PositionRepository
                     ->on('sp.price_date', '=', 'lp.max_price_date');
             })
             ->where('pp.portfolio_id', $portfolioId)
+            ->where('pp.total_shares', '>', 0)
             ->orderBy('pp.stock_code')
             ->selectRaw(
                 'pp.stock_code,
