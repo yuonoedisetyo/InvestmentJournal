@@ -4,8 +4,6 @@ namespace App\Services;
 
 use App\Repositories\PortfolioRepository;
 use App\Repositories\PriceRepository;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -19,19 +17,29 @@ class PriceSyncService
 
     public function syncActivePortfolioStocksForUser(int $userId): array
     {
-        $provider = (string) config('investment.price_provider', 'alpha_vantage');
-        $today = now()->toDateString();
         $symbols = $this->normalizedSymbols($this->portfolioRepository->activeHoldingStockCodesForUser($userId));
         if (empty($symbols)) {
             return ['synced' => 0, 'symbols' => [], 'skipped' => 0, 'reason' => 'no_active_symbols'];
         }
 
-        $symbols = $this->filterSymbolsNotSyncedToday($provider, $symbols, $today);
-        if (empty($symbols)) {
-            return ['synced' => 0, 'symbols' => [], 'skipped' => 0, 'reason' => 'already_synced_today'];
+        $spreadsheetUrl = (string) config('investment.spreadsheet.default_url', '');
+        if ($spreadsheetUrl === '') {
+            return ['synced' => 0, 'symbols' => $symbols, 'skipped' => count($symbols), 'reason' => 'spreadsheet_url_empty'];
         }
 
-        $payload = $this->fetchFromProvider($provider, $symbols);
+        $source = (string) config('investment.spreadsheet.auto_sync_source', 'SPREADSHEET_AUTO');
+        $result = $this->readSpreadsheetPrices($spreadsheetUrl, false, $source);
+        if (! empty($result['error'])) {
+            return [
+                'synced' => 0,
+                'symbols' => $symbols,
+                'skipped' => count($symbols),
+                'reason' => 'spreadsheet_fetch_failed',
+                'error' => $result['error'],
+            ];
+        }
+
+        $payload = $this->filterRowsBySymbols($result['rows'] ?? [], $symbols);
         $synced = 0;
 
         foreach ($payload as $row) {
@@ -45,7 +53,6 @@ class PriceSyncService
             }
 
             $this->priceRepository->upsertDailyPrice($stockCode, $priceDate, $price, $source);
-            Cache::put($this->symbolSyncedCacheKey($provider, $stockCode, $today), true, $this->secondsUntilEndOfDay());
             $synced++;
         }
 
@@ -122,99 +129,14 @@ class PriceSyncService
         ];
     }
 
-    private function fetchFromProvider(string $provider, array $symbols): array
+    private function filterRowsBySymbols(array $rows, array $symbols): array
     {
-        if ($provider === 'custom_endpoint') {
-            return $this->fetchFromCustomEndpoint($symbols);
-        }
+        $allowed = array_flip($this->normalizedSymbols($symbols));
 
-        return $this->fetchFromAlphaVantage($symbols);
-    }
-
-    private function fetchFromAlphaVantage(array $symbols): array
-    {
-        $apiKey = (string) config('investment.alpha_vantage.key', '');
-        if ($apiKey === '') {
-            return [];
-        }
-
-        $baseUrl = (string) config('investment.alpha_vantage.base_url', 'https://www.alphavantage.co/query');
-        $suffix = (string) config('investment.alpha_vantage.symbol_suffix', '.JK');
-        $intervalMs = (int) config('investment.alpha_vantage.request_interval_ms', 12000);
-        $dailyLimit = (int) config('investment.alpha_vantage.daily_request_limit', 25);
-
-        $rows = [];
-        $count = count($symbols);
-        foreach ($symbols as $index => $symbol) {
-            if (! $this->tryConsumeDailyQuota('alpha_vantage', $dailyLimit)) {
-                break;
-            }
-
-            $stockCode = strtoupper((string) $symbol);
-            $providerSymbol = $stockCode.$suffix;
-
-            $response = Http::timeout(20)->get($baseUrl, [
-                'function' => 'GLOBAL_QUOTE',
-                'symbol' => $providerSymbol,
-                'apikey' => $apiKey,
-            ]);
-
-            if (! $response->successful()) {
-                continue;
-            }
-
-            $json = $response->json();
-
-            if (isset($json['Note'])) {
-                // Rate-limit note from Alpha Vantage.
-                break;
-            }
-
-            
-
-            $quote = $json['Global Quote'] ?? null;
-            if (! is_array($quote)) {
-                continue;
-            }
-
-            $price = (string) ($quote['05. price'] ?? '0');
-            $priceDate = (string) ($quote['07. latest trading day'] ?? now()->toDateString());
-            if ($price === '' || $price === '0' || $price === '0.0000') {
-                continue;
-            }
-
-            $rows[] = [
-                'stock_code' => $stockCode,
-                'price' => $price,
-                'price_date' => $priceDate,
-                'source' => 'ALPHA_VANTAGE',
-            ];
-
-            if ($intervalMs > 0 && $index < $count - 1) {
-                usleep($intervalMs * 1000);
-            }
-        }
-
-        return $rows;
-    }
-
-    private function fetchFromCustomEndpoint(array $symbols): array
-    {
-        $endpoint = (string) config('investment.price_sync_endpoint');
-        if ($endpoint === '') {
-            return [];
-        }
-
-        $response = Http::timeout(15)->get($endpoint, [
-            'symbols' => implode(',', $symbols),
-        ]);
-
-        if (! $response->successful()) {
-            return [];
-        }
-
-        $json = $response->json();
-        return is_array($json['data'] ?? null) ? $json['data'] : [];
+        return array_values(array_filter($rows, function (array $row) use ($allowed): bool {
+            $stockCode = strtoupper((string) ($row['stock_code'] ?? ''));
+            return $stockCode !== '' && isset($allowed[$stockCode]);
+        }));
     }
 
     private function parseSpreadsheetCsv(string $content, string $source): array
@@ -318,51 +240,4 @@ class PriceSyncService
         )));
     }
 
-    private function filterSymbolsNotSyncedToday(string $provider, array $symbols, string $today): array
-    {
-        $alreadyInDatabase = $this->priceRepository->symbolsWithPriceOnDate($symbols, $today);
-        $alreadySet = array_flip($alreadyInDatabase);
-
-        return array_values(array_filter($symbols, function (string $symbol) use ($provider, $today, $alreadySet): bool {
-            if (isset($alreadySet[$symbol])) {
-                return false;
-            }
-
-            return ! Cache::has($this->symbolSyncedCacheKey($provider, $symbol, $today));
-        }));
-    }
-
-    private function tryConsumeDailyQuota(string $provider, int $dailyLimit): bool
-    {
-        if ($dailyLimit <= 0) {
-            return true;
-        }
-
-        $key = $this->dailyQuotaCacheKey($provider);
-        $ttl = $this->secondsUntilEndOfDay();
-        Cache::add($key, 0, $ttl);
-
-        $nextCount = Cache::increment($key);
-        if ($nextCount > $dailyLimit) {
-            Cache::decrement($key);
-            return false;
-        }
-
-        return true;
-    }
-
-    private function dailyQuotaCacheKey(string $provider): string
-    {
-        return sprintf('price_sync:quota:%s:%s', $provider, now()->format('Y-m-d'));
-    }
-
-    private function symbolSyncedCacheKey(string $provider, string $stockCode, string $date): string
-    {
-        return sprintf('price_sync:synced:%s:%s:%s', $provider, $stockCode, $date);
-    }
-
-    private function secondsUntilEndOfDay(): int
-    {
-        return max(60, now()->diffInSeconds(Carbon::tomorrow(), false));
-    }
 }

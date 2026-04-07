@@ -6,7 +6,6 @@ use App\Models\CashMutation;
 use App\Models\PortfolioPosition;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -51,9 +50,10 @@ class PriceApiTest extends TestCase
         $this->assertDatabaseCount('stock_prices', 3);
     }
 
-    public function test_it_can_sync_active_prices_from_alpha_vantage(): void
+    public function test_it_can_sync_active_prices_from_custom_endpoint(): void
     {
-        Cache::flush();
+        config(['investment.spreadsheet.default_url' => 'https://example.com/prices.csv']);
+        config(['investment.spreadsheet.auto_sync_source' => 'SPREADSHEET_AUTO']);
 
         $user = User::factory()->create();
         $portfolio = $this->createPortfolio($user);
@@ -70,11 +70,10 @@ class PriceApiTest extends TestCase
         ]);
 
         Http::fake([
-            '*' => Http::response([
-                'Global Quote' => [
-                    '05. price' => '9325.0000',
-                ],
-            ], 200),
+            'https://example.com/prices.csv' => Http::response(
+                "stock_code,price,price_date\nBBCA,9325.0000,2026-03-21\nTLKM,4010.0000,2026-03-21\n",
+                200
+            ),
         ]);
 
         $this->withHeaders($headers)->postJson('/api/prices/sync-active')
@@ -83,6 +82,7 @@ class PriceApiTest extends TestCase
 
         $this->assertDatabaseHas('stock_prices', [
             'stock_code' => 'BBCA',
+            'source' => 'SPREADSHEET_AUTO',
         ]);
     }
 }

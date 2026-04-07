@@ -183,3 +183,14 @@ npm run dev
 - [backend](/Users/user/Documents/project/Codex/InvestmentJournal/backend): Laravel API + MySQL
 - [frontend](/Users/user/Documents/project/Codex/InvestmentJournal/frontend): React + Vite
 - [mobile](/Users/user/Documents/project/Codex/InvestmentJournal/mobile): React Native + Expo
+
+
+Urutan deploy backend yang aman ke depannya:
+
+git pull origin main
+cd backend
+php artisan optimize:clear
+php artisan migrate --force
+cp -R public/* /home/insitei1/investment.insite.id/api/
+cp public/.htaccess /home/insitei1/investment.insite.id/api/
+rewrite ulang /home/insitei1/investment.insite.id/api/index.php ke versi custom

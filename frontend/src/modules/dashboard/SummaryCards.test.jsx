@@ -19,6 +19,8 @@ describe('SummaryCards', () => {
     expect(screen.getByText('Total Modal Disetor')).toBeInTheDocument();
     expect(screen.getByText('Sisa Cash')).toBeInTheDocument();
     expect(screen.getByText('Net Asset Value')).toBeInTheDocument();
-    expect(screen.getByText('Overall Return (%)')).toBeInTheDocument();
+    expect(screen.getByText('Overall Return')).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('Rp') && content.includes('200.000') && content.includes('22.22%'))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('Rp') && content.includes('100.000') && content.includes('-10.00%'))).toBeInTheDocument();
   });
 });

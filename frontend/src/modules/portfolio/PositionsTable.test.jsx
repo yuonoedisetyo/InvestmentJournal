@@ -32,6 +32,12 @@ describe('PositionsTable', () => {
     expect(screen.getByText('No')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('BBCA')).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('1.800.000') && content.includes('94.74%'))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('1.900.000') && content.includes('105.56%'))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('100.000') && content.includes('5.55%'))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('Rp') && content.includes('1.900.000') && content.includes('100.00%'))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('Rp') && content.includes('1.800.000') && content.includes('100.00%'))).toBeInTheDocument();
+    expect(screen.getAllByText(/\(100\.00%\)/)).toHaveLength(2);
     expect(screen.getByText(/\(5\.56%\)/)).toBeInTheDocument();
     expect(props.onSyncSpreadsheet).toHaveBeenCalledTimes(1);
   });

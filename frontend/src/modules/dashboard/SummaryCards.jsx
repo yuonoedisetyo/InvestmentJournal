@@ -9,6 +9,7 @@ export default function SummaryCards({ summary, cashBalance = 0, capitalSummary 
   const netAssetValue = Number(capitalSummary?.net_asset_value ?? summary.marketValue + cashBalanceSummary);
   const overallReturnNominal = Number(capitalSummary?.overall_return?.nominal ?? 0);
   const overallReturnPercent = Number(capitalSummary?.overall_return?.percent ?? 0);
+  const cashBalancePercent = netAssetValue > 0 ? (cashBalanceSummary / netAssetValue) * 100 : 0;
 
   return (
     <section className="summary-grid">
@@ -25,13 +26,20 @@ export default function SummaryCards({ summary, cashBalance = 0, capitalSummary 
         accent={summary.pnlPercent >= 0 ? '#854d0e' : '#9f1239'}
       /> */}
       <StatCard label="Total Modal Disetor" value={formatIDR(totalModalDisetor)} accent="#155e75" />
-      <StatCard label="Sisa Cash" value={formatIDR(cashBalanceSummary)} accent="#0369a1" />
+      <StatCard
+        label="Sisa Cash"
+        value={`${formatIDR(cashBalanceSummary)} (${formatPercent(cashBalancePercent)})`}
+        accent="#0369a1"
+      />
 
       {/* <StatCard label="Total Topup" value={formatIDR(totalTopup)} accent="#166534" />
       <StatCard label="Total Withdraw" value={formatIDR(totalWithdraw)} accent="#991b1b" /> */}
       <StatCard label="Net Asset Value" value={formatIDR(netAssetValue)} accent="#1d4ed8" />
-      <StatCard label="Overall Return (Nominal)" value={formatIDR(overallReturnNominal)} accent={overallReturnNominal >= 0 ? '#166534' : '#991b1b'} />
-      <StatCard label="Overall Return (%)" value={formatPercent(overallReturnPercent)} accent={overallReturnPercent >= 0 ? '#854d0e' : '#9f1239'} />
+      <StatCard
+        label="Overall Return"
+        value={`${formatIDR(overallReturnNominal)} (${formatPercent(overallReturnPercent)})`}
+        accent={overallReturnNominal >= 0 ? '#166534' : '#991b1b'}
+      />
     </section>
   );
 }
