@@ -169,7 +169,7 @@ class PriceSyncService
             $columns = str_getcsv($line);
             $stockCode = strtoupper(trim((string) ($columns[$stockIndex] ?? '')));
             $priceRaw = trim((string) ($columns[$priceIndex] ?? '0'));
-            $price = str_replace(',', '.', preg_replace('/[^\d,.\-]/', '', $priceRaw) ?? '0');
+            $price = $this->normalizePriceString($priceRaw);
             $priceDate = $priceDateIndex !== null ? trim((string) ($columns[$priceDateIndex] ?? '')) : '';
 
             if ($stockCode === '' || $price === '' || ! is_numeric($price) || (float) $price <= 0) {
@@ -230,6 +230,33 @@ class PriceSyncService
         } catch (Throwable) {
             return now()->toDateString();
         }
+    }
+
+    private function normalizePriceString(string $value): string
+    {
+        $normalized = preg_replace('/[^\d,.\-]/', '', trim($value)) ?? '';
+        if ($normalized === '') {
+            return '';
+        }
+
+        $lastComma = strrpos($normalized, ',');
+        $lastDot = strrpos($normalized, '.');
+
+        if ($lastComma !== false && $lastDot !== false) {
+            if ($lastComma > $lastDot) {
+                $normalized = str_replace('.', '', $normalized);
+                $normalized = str_replace(',', '.', $normalized);
+            } else {
+                $normalized = str_replace(',', '', $normalized);
+            }
+        } elseif ($lastComma !== false) {
+            $normalized = str_replace('.', '', $normalized);
+            $normalized = str_replace(',', '.', $normalized);
+        } else {
+            $normalized = str_replace(',', '', $normalized);
+        }
+
+        return $normalized;
     }
 
     private function normalizedSymbols(array $symbols): array

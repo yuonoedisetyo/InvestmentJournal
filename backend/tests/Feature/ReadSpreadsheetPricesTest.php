@@ -100,6 +100,47 @@ class ReadSpreadsheetPricesTest extends TestCase
         $this->assertSame(2, StockPrice::query()->count());
     }
 
+    public function test_it_parses_mixed_decimal_and_thousand_separators(): void
+    {
+        Http::fake([
+            'https://example.com/prices.csv' => Http::response(
+                "stock_code,price,price_date\nADMR,\"1.715,00\",2026-04-08\nBBCA,\"1,715.00\",2026-04-08\nTLKM,\"1715,00\",2026-04-08\nASII,1715.00,2026-04-08\n",
+                200
+            ),
+        ]);
+
+        $response = $this->withHeaders($this->headers)->postJson('/api/prices/read-spreadsheet', [
+            'spreadsheet_url' => 'https://example.com/prices.csv',
+            'upsert' => true,
+            'source' => 'SPREADSHEET_TEST',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('parsed', 4)
+            ->assertJsonPath('upserted', 4);
+
+        $this->assertDatabaseHas('stock_prices', [
+            'stock_code' => 'ADMR',
+            'price' => '1715.0000',
+            'price_date' => '2026-04-08',
+        ]);
+        $this->assertDatabaseHas('stock_prices', [
+            'stock_code' => 'BBCA',
+            'price' => '1715.0000',
+            'price_date' => '2026-04-08',
+        ]);
+        $this->assertDatabaseHas('stock_prices', [
+            'stock_code' => 'TLKM',
+            'price' => '1715.0000',
+            'price_date' => '2026-04-08',
+        ]);
+        $this->assertDatabaseHas('stock_prices', [
+            'stock_code' => 'ASII',
+            'price' => '1715.0000',
+            'price_date' => '2026-04-08',
+        ]);
+    }
+
     public function test_it_handles_connection_exception_without_500(): void
     {
         Http::fake(function () {
