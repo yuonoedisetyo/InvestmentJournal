@@ -431,15 +431,32 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
 
   async function loadPerformanceData(portfolioId = selectedPortfolioId) {
     if (!portfolioId) {
-      setPerformanceData([]);
+      setPerformanceData({ meta: null, summary: null, series: [] });
       return;
     }
 
     try {
       const data = await portfolioApi.performance(portfolioId);
-      setPerformanceData(Array.isArray(data) ? data : []);
+      if (Array.isArray(data)) {
+        setPerformanceData({
+          meta: { benchmark: 'IHSG', method: 'normalized_nav', base_index: 100 },
+          summary: null,
+          series: data.map((item) => ({
+            ...item,
+            portfolio_index: Number(item.portfolio ?? 100),
+            benchmark_index: Number(item.ihsg ?? 100),
+          })),
+        });
+        return;
+      }
+
+      setPerformanceData({
+        meta: data?.meta ?? null,
+        summary: data?.summary ?? null,
+        series: Array.isArray(data?.series) ? data.series : [],
+      });
     } catch {
-      setPerformanceData([]);
+      setPerformanceData({ meta: null, summary: null, series: [] });
     }
   }
 

@@ -14,7 +14,14 @@ vi.mock('recharts', () => ({
 
 describe('PerformanceChart', () => {
   it('renders chart heading and line labels', () => {
-    render(<PerformanceChart data={[{ date: '2026-03-21', portfolio: 100, ihsg: 100 }]} />);
+    render(
+      <PerformanceChart
+        data={{
+          meta: { benchmark: 'IHSG' },
+          series: [{ date: '2026-03-21', portfolio_index: 100, benchmark_index: 100 }],
+        }}
+      />
+    );
 
     expect(screen.getByText('Perkembangan Nilai Investasi vs IHSG')).toBeInTheDocument();
     expect(screen.getByText('Portfolio')).toBeInTheDocument();

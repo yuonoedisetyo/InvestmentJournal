@@ -39,17 +39,25 @@ const defaultPositions = [
   // },
 ];
 
-const defaultPerformance = [
-  { date: '2026-02-20', portfolio: 100, ihsg: 100 },
-  { date: '2026-02-21', portfolio: 100.5, ihsg: 100.2 },
-  { date: '2026-02-22', portfolio: 101.2, ihsg: 100.6 },
-  { date: '2026-02-23', portfolio: 101.0, ihsg: 100.4 },
-  { date: '2026-02-24', portfolio: 102.4, ihsg: 101.0 },
-  { date: '2026-02-25', portfolio: 102.1, ihsg: 100.8 },
-  { date: '2026-02-26', portfolio: 103.3, ihsg: 101.4 },
-  { date: '2026-02-27', portfolio: 104.0, ihsg: 101.8 },
-  { date: '2026-02-28', portfolio: 104.6, ihsg: 102.1 },
-];
+const defaultPerformance = {
+  meta: {
+    benchmark: 'IHSG',
+    method: 'time_weighted_return',
+    base_index: 100,
+  },
+  summary: null,
+  series: [
+    { date: '2026-02-20', portfolio_index: 100, benchmark_index: 100 },
+    { date: '2026-02-21', portfolio_index: 100.5, benchmark_index: 100.2 },
+    { date: '2026-02-22', portfolio_index: 101.2, benchmark_index: 100.6 },
+    { date: '2026-02-23', portfolio_index: 101.0, benchmark_index: 100.4 },
+    { date: '2026-02-24', portfolio_index: 102.4, benchmark_index: 101.0 },
+    { date: '2026-02-25', portfolio_index: 102.1, benchmark_index: 100.8 },
+    { date: '2026-02-26', portfolio_index: 103.3, benchmark_index: 101.4 },
+    { date: '2026-02-27', portfolio_index: 104.0, benchmark_index: 101.8 },
+    { date: '2026-02-28', portfolio_index: 104.6, benchmark_index: 102.1 },
+  ],
+};
 
 export function useInvestmentStore() {
   const [portfolios, setPortfolios] = useState(defaultPortfolios);

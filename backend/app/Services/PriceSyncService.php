@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Repositories\PortfolioRepository;
 use App\Repositories\PriceRepository;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -88,34 +89,24 @@ class PriceSyncService
     public function readSpreadsheetPrices(string $spreadsheetUrl, bool $upsert = false, string $source = 'SPREADSHEET'): array
     {
         $csvUrl = $this->normalizeSpreadsheetUrl($spreadsheetUrl);
-        try {
-            $response = Http::timeout(20)->get($csvUrl);
-        } catch (Throwable $exception) {
+        $resolved = $this->resolveCsvContent($csvUrl);
+        if (! empty($resolved['error'])) {
             return [
                 'rows' => [],
                 'parsed' => 0,
                 'upserted' => 0,
-                'source_url' => $csvUrl,
-                'error' => $exception->getMessage(),
-            ];
-        }
-        if (! $response->successful()) {
-            return [
-                'rows' => [],
-                'parsed' => 0,
-                'upserted' => 0,
-                'source_url' => $csvUrl,
-                'error' => 'Unable to fetch spreadsheet URL.',
+                'source_url' => $resolved['source'] ?? $csvUrl,
+                'error' => $resolved['error'],
             ];
         }
 
-        $rows = $this->parseSpreadsheetCsv($response->body(), $source);
+        $rows = $this->parseSpreadsheetCsv((string) ($resolved['content'] ?? ''), $source);
         if (! $upsert) {
             return [
                 'rows' => $rows,
                 'parsed' => count($rows),
                 'upserted' => 0,
-                'source_url' => $csvUrl,
+                'source_url' => $resolved['source'] ?? $csvUrl,
             ];
         }
 
@@ -125,7 +116,80 @@ class PriceSyncService
             'parsed' => count($rows),
             'upserted' => $result['upserted'] ?? 0,
             'symbols' => $result['symbols'] ?? [],
-            'source_url' => $csvUrl,
+            'source_url' => $resolved['source'] ?? $csvUrl,
+        ];
+    }
+
+    public function syncIhsgFromConfiguredSource(): array
+    {
+        $sourcePath = trim((string) config('investment.ihsg.source_path', ''));
+        $sourceUrl = trim((string) config('investment.ihsg.source_url', ''));
+        $source = $sourcePath !== '' ? $sourcePath : $sourceUrl;
+
+        if ($source === '') {
+            return [
+                'parsed' => 0,
+                'upserted' => 0,
+                'reason' => 'ihsg_source_empty',
+            ];
+        }
+
+        return $this->readIhsgPrices($source, true, (string) config('investment.ihsg.auto_sync_source', 'IHSG_AUTO'));
+    }
+
+    public function manualUpsertIhsgPrices(array $rows): array
+    {
+        $upserted = 0;
+
+        foreach ($rows as $row) {
+            $priceDate = $this->normalizeDateString((string) ($row['price_date'] ?? now()->toDateString()));
+            $close = (string) ($row['close'] ?? '0');
+            $source = (string) ($row['source'] ?? 'IHSG_MANUAL');
+
+            if ($close === '' || ! is_numeric($close) || (float) $close <= 0) {
+                continue;
+            }
+
+            $this->priceRepository->upsertIhsgPrice($priceDate, $close, $source);
+            $upserted++;
+        }
+
+        return ['upserted' => $upserted];
+    }
+
+    public function readIhsgPrices(string $sourceInput, bool $upsert = false, string $source = 'IHSG_FILE'): array
+    {
+        $resolvedSource = $this->isRemoteUrl(trim($sourceInput))
+            ? $this->normalizeSpreadsheetUrl($sourceInput)
+            : $sourceInput;
+        $resolved = $this->resolveCsvContent($resolvedSource);
+        if (! empty($resolved['error'])) {
+            return [
+                'rows' => [],
+                'parsed' => 0,
+                'upserted' => 0,
+                'source_url' => $resolved['source'] ?? $resolvedSource,
+                'error' => $resolved['error'],
+            ];
+        }
+
+        $rows = $this->parseIhsgCsv((string) ($resolved['content'] ?? ''), $source);
+        if (! $upsert) {
+            return [
+                'rows' => $rows,
+                'parsed' => count($rows),
+                'upserted' => 0,
+                'source_url' => $resolved['source'] ?? $resolvedSource,
+            ];
+        }
+
+        $result = $this->manualUpsertIhsgPrices($rows);
+
+        return [
+            'rows' => $rows,
+            'parsed' => count($rows),
+            'upserted' => $result['upserted'] ?? 0,
+            'source_url' => $resolved['source'] ?? $resolvedSource,
         ];
     }
 
@@ -187,6 +251,51 @@ class PriceSyncService
         return $rows;
     }
 
+    private function parseIhsgCsv(string $content, string $source): array
+    {
+        $lines = preg_split('/\r\n|\n|\r/', trim($content)) ?: [];
+        if (count($lines) < 2) {
+            return [];
+        }
+
+        $header = str_getcsv((string) array_shift($lines));
+        $normalizedHeader = array_map(
+            fn ($value) => strtolower(trim((string) $value)),
+            $header
+        );
+
+        $dateIndex = $this->findHeaderIndex($normalizedHeader, ['price_date', 'date', 'tanggal']);
+        $closeIndex = $this->findHeaderIndex($normalizedHeader, ['close', 'ihsg', 'close_price', 'price', 'nilai']);
+
+        if ($dateIndex === null || $closeIndex === null) {
+            return [];
+        }
+
+        $rows = [];
+        foreach ($lines as $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+
+            $columns = str_getcsv($line);
+            $priceDate = trim((string) ($columns[$dateIndex] ?? ''));
+            $closeRaw = trim((string) ($columns[$closeIndex] ?? '0'));
+            $close = $this->normalizePriceString($closeRaw);
+
+            if ($close === '' || ! is_numeric($close) || (float) $close <= 0) {
+                continue;
+            }
+
+            $rows[] = [
+                'price_date' => $this->normalizeDateString($priceDate),
+                'close' => (string) $close,
+                'source' => $source,
+            ];
+        }
+
+        return $rows;
+    }
+
     private function findHeaderIndex(array $header, array $aliases): ?int
     {
         foreach ($aliases as $alias) {
@@ -217,6 +326,44 @@ class PriceSyncService
         }
 
         return $trimmed;
+    }
+
+    private function resolveCsvContent(string $sourceInput): array
+    {
+        $source = trim($sourceInput);
+        if ($source === '') {
+            return ['error' => 'Source is empty.', 'source' => $source];
+        }
+
+        if ($this->isRemoteUrl($source)) {
+            try {
+                $response = Http::timeout(20)->get($source);
+            } catch (Throwable $exception) {
+                return ['error' => $exception->getMessage(), 'source' => $source];
+            }
+
+            if (! $response->successful()) {
+                return ['error' => 'Unable to fetch source URL.', 'source' => $source];
+            }
+
+            return ['content' => $response->body(), 'source' => $source];
+        }
+
+        if (! is_file($source) || ! is_readable($source)) {
+            return ['error' => 'Local source file not found or not readable.', 'source' => $source];
+        }
+
+        $content = @file_get_contents($source);
+        if ($content === false) {
+            return ['error' => 'Unable to read local source file.', 'source' => $source];
+        }
+
+        return ['content' => $content, 'source' => $source];
+    }
+
+    private function isRemoteUrl(string $value): bool
+    {
+        return str_starts_with($value, 'http://') || str_starts_with($value, 'https://');
     }
 
     private function normalizeDateString(?string $date): string
