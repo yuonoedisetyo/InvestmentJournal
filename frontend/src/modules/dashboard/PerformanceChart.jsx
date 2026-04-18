@@ -15,20 +15,25 @@ export default function PerformanceChart({ data }) {
   const series = Array.isArray(data) ? data : Array.isArray(data?.series) ? data.series : [];
   const benchmarkLabel = meta?.benchmark || 'IHSG';
 
+  function formatIndexAsPercent(value) {
+    const numericValue = Number(value ?? 100);
+    return `${(numericValue - 100).toFixed(2)}%`;
+  }
+
   return (
     <section className="panel chart-panel">
       <div className="panel-head">
         <h2>Perkembangan Nilai Investasi vs {benchmarkLabel}</h2>
-        <p>Index dasar 100 (normalisasi performa)</p>
+        <p>Ditampilkan sebagai return kumulatif (%) dari titik awal</p>
       </div>
       <div className="chart-wrapper">
         <ResponsiveContainer width="100%" height={320}>
           <LineChart data={series}>
             <CartesianGrid strokeDasharray="3 3" stroke="#d6d3d1" />
             <XAxis dataKey="date" tickFormatter={formatCompactDate} stroke="#44403c" />
-            <YAxis stroke="#44403c" />
+            <YAxis tickFormatter={formatIndexAsPercent} stroke="#44403c" />
             <Tooltip
-              formatter={(value) => Number(value).toFixed(2)}
+              formatter={(value) => formatIndexAsPercent(value)}
               labelFormatter={(label) => `Tanggal: ${label}`}
             />
             <Legend />

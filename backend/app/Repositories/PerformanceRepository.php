@@ -9,6 +9,17 @@ use Illuminate\Support\Facades\DB;
 
 class PerformanceRepository
 {
+    public function stockTransactionsInRange(int $userId, int $portfolioId, string $startDate, string $endDate): Collection
+    {
+        return StockTransaction::query()
+            ->where('user_id', $userId)
+            ->where('portfolio_id', $portfolioId)
+            ->whereBetween('transaction_date', [$startDate, $endDate])
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->get(['id', 'transaction_date', 'stock_code', 'type', 'lot', 'price', 'net_amount']);
+    }
+
     public function stockTransactionsUpToDate(int $userId, int $portfolioId, string $endDate): Collection
     {
         return StockTransaction::query()
@@ -18,6 +29,18 @@ class PerformanceRepository
             ->orderBy('transaction_date')
             ->orderBy('id')
             ->get(['transaction_date', 'stock_code', 'type', 'lot', 'price', 'net_amount']);
+    }
+
+    public function cashMutationsInRange(int $userId, int $portfolioId, string $startDate, string $endDate): Collection
+    {
+        return CashMutation::query()
+            ->where('user_id', $userId)
+            ->where('portfolio_id', $portfolioId)
+            ->whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get(['id', 'created_at', 'type', 'amount', 'reference_id']);
     }
 
     public function cashMutationsUpToDate(int $userId, int $portfolioId, string $endDate): Collection

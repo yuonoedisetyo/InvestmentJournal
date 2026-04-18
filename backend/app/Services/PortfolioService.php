@@ -126,11 +126,19 @@ class PortfolioService
         $startDate = $start->toDateString();
         $endDate = $end->toDateString();
 
-        $transactions = $this->performanceRepository->stockTransactionsUpToDate($userId, $portfolioId, $endDate);
-        $cashMutations = $this->performanceRepository->cashMutationsUpToDate($userId, $portfolioId, $endDate);
+        $positions = $this->positionRepository->listWithLatestPriceByPortfolio($portfolioId);
+        $transactions = $this->performanceRepository->stockTransactionsInRange($userId, $portfolioId, $startDate, $endDate);
+        $cashMutations = $this->performanceRepository->cashMutationsInRange($userId, $portfolioId, $startDate, $endDate);
+        $currentCashBalance = (float) $this->cashMutationRepository->getBalanceByPortfolio($userId, $portfolioId);
+        $currentTotalModalDisetor = (float) DecimalMath::sub(
+            $this->cashMutationRepository->getTotalTopupByPortfolio($userId, $portfolioId),
+            $this->cashMutationRepository->getTotalWithdrawByPortfolio($userId, $portfolioId),
+            4
+        );
 
-        $stockCodes = $transactions
+        $stockCodes = $positions
             ->pluck('stock_code')
+            ->concat($transactions->pluck('stock_code'))
             ->map(fn ($value) => strtoupper((string) $value))
             ->unique()
             ->values()
@@ -143,8 +151,13 @@ class PortfolioService
 
         $transactionByDate = [];
         $holdings = [];
-        $cashBalance = 0.0;
         $lastKnownPrice = [];
+        foreach ($positions as $position) {
+            $code = strtoupper((string) $position->stock_code);
+            $holdings[$code] = (int) ($position->total_shares ?? 0);
+            $lastKnownPrice[$code] = (float) ($position->last_price ?? 0);
+        }
+
         foreach ($transactions as $transaction) {
             $date = Carbon::parse($transaction->transaction_date)->toDateString();
             $normalizedTransaction = [
@@ -155,18 +168,14 @@ class PortfolioService
                 'net_amount' => (float) $transaction->net_amount,
             ];
 
-            if ($date < $startDate) {
-                $this->applyStockTransaction($holdings, $lastKnownPrice, $cashBalance, $normalizedTransaction);
-                continue;
-            }
-
             $transactionByDate[$date][] = $normalizedTransaction;
         }
 
         $cashDeltaByDate = [];
         $externalFlowByDate = [];
         $modalDisetorDeltaByDate = [];
-        $totalModalDisetor = 0.0;
+        $cashBalance = $currentCashBalance;
+        $totalModalDisetor = $currentTotalModalDisetor;
         foreach ($cashMutations as $mutation) {
             $date = Carbon::parse($mutation->created_at)->toDateString();
             $amount = (float) $mutation->amount;
@@ -180,16 +189,6 @@ class PortfolioService
             }
 
             $delta = in_array($type, ['WITHDRAW', 'FEE'], true) ? -$amount : $amount;
-
-            if ($date < $startDate) {
-                $cashBalance += $delta;
-                if ($isManualDeposit) {
-                    $totalModalDisetor += $amount;
-                } elseif ($isManualWithdraw) {
-                    $totalModalDisetor -= $amount;
-                }
-                continue;
-            }
 
             $cashDeltaByDate[$date] = ($cashDeltaByDate[$date] ?? 0.0) + $delta;
 
@@ -206,7 +205,10 @@ class PortfolioService
 
         $priceByDate = [];
         foreach ($openingPriceRows as $priceRow) {
-            $lastKnownPrice[strtoupper((string) $priceRow->stock_code)] = (float) $priceRow->price;
+            $code = strtoupper((string) $priceRow->stock_code);
+            if (($lastKnownPrice[$code] ?? 0.0) <= 0) {
+                $lastKnownPrice[$code] = (float) $priceRow->price;
+            }
         }
 
         foreach ($priceRows as $priceRow) {
@@ -219,6 +221,41 @@ class PortfolioService
         foreach ($ihsgRows as $priceRow) {
             $date = Carbon::parse($priceRow->price_date)->toDateString();
             $ihsgByDate[$date] = (float) $priceRow->close;
+        }
+
+        foreach ($transactions->sortByDesc(fn ($transaction) => sprintf(
+            '%s-%010d',
+            Carbon::parse($transaction->transaction_date)->toDateString(),
+            (int) $transaction->id
+        )) as $transaction) {
+            $this->reverseStockTransaction($holdings, $cashBalance, [
+                'stock_code' => strtoupper((string) $transaction->stock_code),
+                'type' => (string) $transaction->type,
+                'lot' => (int) $transaction->lot,
+                'net_amount' => (float) $transaction->net_amount,
+            ]);
+        }
+
+        foreach ($cashMutations->sortByDesc(fn ($mutation) => sprintf(
+            '%s-%010d',
+            Carbon::parse($mutation->created_at)->toDateString(),
+            (int) $mutation->id
+        )) as $mutation) {
+            $type = (string) $mutation->type;
+            $amount = (float) $mutation->amount;
+            $isLinkedStockCashMutation = in_array($type, ['DEPOSIT', 'WITHDRAW'], true) && $mutation->reference_id !== null;
+            if ($isLinkedStockCashMutation) {
+                continue;
+            }
+
+            $delta = in_array($type, ['WITHDRAW', 'FEE'], true) ? -$amount : $amount;
+            $cashBalance -= $delta;
+
+            if ($type === 'DEPOSIT' && $mutation->reference_id === null) {
+                $totalModalDisetor -= $amount;
+            } elseif ($type === 'WITHDRAW' && $mutation->reference_id === null) {
+                $totalModalDisetor += $amount;
+            }
         }
 
         $lastKnownIhsg = $openingIhsgRow ? (float) $openingIhsgRow->close : 0.0;
@@ -313,6 +350,7 @@ class PortfolioService
                 'benchmark' => 'IHSG',
                 'method' => 'time_weighted_return',
                 'base_index' => 100,
+                'performance_cutoff_date' => $startDate,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'days' => $days,
@@ -345,6 +383,16 @@ class PortfolioService
             ? -$transaction['net_amount']
             : $transaction['net_amount'];
         $lastKnownPrice[$code] = $transaction['price'];
+    }
+
+    private function reverseStockTransaction(array &$holdings, float &$cashBalance, array $transaction): void
+    {
+        $code = $transaction['stock_code'];
+        $sharesDelta = ($transaction['type'] === 'BUY' ? 1 : -1) * $transaction['lot'] * 100;
+        $holdings[$code] = ($holdings[$code] ?? 0) - $sharesDelta;
+        $cashBalance -= $transaction['type'] === 'BUY'
+            ? -$transaction['net_amount']
+            : $transaction['net_amount'];
     }
 
     private function calculateMaxDrawdownPercent(array $series): float
