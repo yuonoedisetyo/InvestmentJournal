@@ -116,7 +116,22 @@ class PortfolioApiTest extends TestCase
         $this->withHeaders($headers)->getJson("/api/portfolios/{$firstId}/performance")
             ->assertOk()
             ->assertJsonStructure([
-                '*' => ['date', 'portfolio', 'ihsg', 'nav'],
+                'meta' => ['portfolio_id', 'currency', 'benchmark', 'method', 'base_index', 'start_date', 'end_date', 'days'],
+                'summary' => [
+                    'portfolio' => ['start_nav', 'end_nav', 'return_nominal', 'return_percent', 'max_drawdown_percent'],
+                    'benchmark' => ['start_price', 'end_price', 'return_percent'],
+                    'alpha_percent',
+                ],
+                'series' => [
+                    '*' => [
+                        'date',
+                        'portfolio',
+                        'ihsg',
+                        'portfolio_nav',
+                        'total_modal_disetor',
+                        'total_asset_value',
+                    ],
+                ],
             ]);
     }
 }

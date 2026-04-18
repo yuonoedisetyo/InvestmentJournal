@@ -60,6 +60,9 @@ vi.mock('./components/Header', () => ({
 vi.mock('./modules/dashboard/PerformanceChart', () => ({
   default: () => <div>PerformanceChart</div>,
 }));
+vi.mock('./modules/dashboard/CapitalComparisonChart', () => ({
+  default: () => <div>CapitalComparisonChart</div>,
+}));
 vi.mock('./modules/dashboard/SummaryCards', () => ({
   default: () => <div>SummaryCards</div>,
 }));
@@ -162,6 +165,7 @@ describe('App', () => {
 
     expect(screen.getByText('Header Yedi')).toBeInTheDocument();
     expect(screen.getByText('PortfolioSelector')).toBeInTheDocument();
+    expect(screen.getByText('CapitalComparisonChart')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add Portfolio' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Input Transaksi' })).toBeInTheDocument();
     expect(screen.queryByText('TransactionForm')).not.toBeInTheDocument();

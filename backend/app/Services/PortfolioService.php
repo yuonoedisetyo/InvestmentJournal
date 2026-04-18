@@ -165,23 +165,34 @@ class PortfolioService
 
         $cashDeltaByDate = [];
         $externalFlowByDate = [];
+        $modalDisetorDeltaByDate = [];
+        $totalModalDisetor = 0.0;
         foreach ($cashMutations as $mutation) {
             $date = Carbon::parse($mutation->created_at)->toDateString();
             $amount = (float) $mutation->amount;
             $type = (string) $mutation->type;
+            $isManualDeposit = $type === 'DEPOSIT' && $mutation->reference_id === null;
+            $isManualWithdraw = $type === 'WITHDRAW' && $mutation->reference_id === null;
             $delta = in_array($type, ['WITHDRAW', 'FEE'], true) ? -$amount : $amount;
 
             if ($date < $startDate) {
                 $cashBalance += $delta;
+                if ($isManualDeposit) {
+                    $totalModalDisetor += $amount;
+                } elseif ($isManualWithdraw) {
+                    $totalModalDisetor -= $amount;
+                }
                 continue;
             }
 
             $cashDeltaByDate[$date] = ($cashDeltaByDate[$date] ?? 0.0) + $delta;
 
-            if ($type === 'DEPOSIT' && $mutation->reference_id === null) {
+            if ($isManualDeposit) {
                 $externalFlowByDate[$date] = ($externalFlowByDate[$date] ?? 0.0) + $amount;
-            } elseif ($type === 'WITHDRAW' && $mutation->reference_id === null) {
+                $modalDisetorDeltaByDate[$date] = ($modalDisetorDeltaByDate[$date] ?? 0.0) + $amount;
+            } elseif ($isManualWithdraw) {
                 $externalFlowByDate[$date] = ($externalFlowByDate[$date] ?? 0.0) - $amount;
+                $modalDisetorDeltaByDate[$date] = ($modalDisetorDeltaByDate[$date] ?? 0.0) - $amount;
             } elseif ($type === 'ADJUSTMENT') {
                 $externalFlowByDate[$date] = ($externalFlowByDate[$date] ?? 0.0) + $delta;
             }
@@ -237,6 +248,7 @@ class PortfolioService
                 $lastKnownIhsg = $ihsgByDate[$dateKey];
             }
 
+            $totalModalDisetor += $modalDisetorDeltaByDate[$dateKey] ?? 0.0;
             $netAssetValue = $marketValue + $cashBalance;
             $externalFlow = $externalFlowByDate[$dateKey] ?? 0.0;
             $portfolioDailyReturn = 0.0;
@@ -259,6 +271,8 @@ class PortfolioService
                 'portfolio_nav' => round($netAssetValue, 4),
                 'market_value' => round($marketValue, 4),
                 'cash_balance' => round($cashBalance, 4),
+                'total_modal_disetor' => round($totalModalDisetor, 4),
+                'total_asset_value' => round($netAssetValue, 4),
                 'net_flow' => round($externalFlow, 4),
                 'portfolio_daily_return' => round($portfolioDailyReturn * 100, 4),
                 'portfolio_index' => round($portfolioIndex, 2),

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Header from './components/Header';
+import CapitalComparisonChart from './modules/dashboard/CapitalComparisonChart';
 import PerformanceChart from './modules/dashboard/PerformanceChart';
 import SummaryCards from './modules/dashboard/SummaryCards';
 import PortfolioForm from './modules/portfolio/PortfolioForm';
@@ -737,6 +738,7 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
           <>
             <section className="two-col">
               <PerformanceChart data={performanceData} />
+              <CapitalComparisonChart data={performanceData} summary={summary} capitalSummary={capitalSummary} />
             </section>
             <SummaryCards summary={summary} cashBalance={cashBalance} capitalSummary={capitalSummary} />
             <PositionsTable
