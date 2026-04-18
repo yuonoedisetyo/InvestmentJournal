@@ -173,6 +173,12 @@ class PortfolioService
             $type = (string) $mutation->type;
             $isManualDeposit = $type === 'DEPOSIT' && $mutation->reference_id === null;
             $isManualWithdraw = $type === 'WITHDRAW' && $mutation->reference_id === null;
+            $isLinkedStockCashMutation = in_array($type, ['DEPOSIT', 'WITHDRAW'], true) && $mutation->reference_id !== null;
+
+            if ($isLinkedStockCashMutation) {
+                continue;
+            }
+
             $delta = in_array($type, ['WITHDRAW', 'FEE'], true) ? -$amount : $amount;
 
             if ($date < $startDate) {
