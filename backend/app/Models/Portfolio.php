@@ -14,11 +14,13 @@ class Portfolio extends Model
         'name',
         'currency',
         'initial_capital',
+        'performance_cutoff_date',
         'is_active',
     ];
 
     protected $casts = [
         'initial_capital' => 'decimal:4',
+        'performance_cutoff_date' => 'date',
         'is_active' => 'boolean',
     ];
 }

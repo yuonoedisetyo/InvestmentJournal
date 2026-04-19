@@ -9,6 +9,28 @@ use Illuminate\Support\Facades\DB;
 
 class PerformanceRepository
 {
+    public function earliestStockTransactionDate(int $userId, int $portfolioId): ?string
+    {
+        $value = StockTransaction::query()
+            ->where('user_id', $userId)
+            ->where('portfolio_id', $portfolioId)
+            ->orderBy('transaction_date')
+            ->value('transaction_date');
+
+        return $value ? (string) $value : null;
+    }
+
+    public function earliestCashMutationDate(int $userId, int $portfolioId): ?string
+    {
+        $value = CashMutation::query()
+            ->where('user_id', $userId)
+            ->where('portfolio_id', $portfolioId)
+            ->orderBy('created_at')
+            ->value('created_at');
+
+        return $value ? (string) $value : null;
+    }
+
     public function stockTransactionsInRange(int $userId, int $portfolioId, string $startDate, string $endDate): Collection
     {
         return StockTransaction::query()

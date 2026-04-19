@@ -4,6 +4,7 @@ function createInitialForm() {
   return {
     name: '',
     currency: 'IDR',
+    performance_cutoff_date: '',
   };
 }
 
@@ -28,13 +29,11 @@ export default function PortfolioForm({ onSubmit, creating = false }) {
       name: form.name.trim(),
       currency: form.currency,
       initial_capital: 0,
+      performance_cutoff_date: form.performance_cutoff_date || null,
       is_active: true,
     });
 
-    setForm((prev) => ({
-      ...prev,
-      name: '',
-    }));
+    setForm(createInitialForm());
   }
 
   return (
@@ -60,6 +59,15 @@ export default function PortfolioForm({ onSubmit, creating = false }) {
             <option value="IDR">IDR</option>
             <option value="USD">USD</option>
           </select>
+        </label>
+        <label>
+          Cut-off Performa
+          <input
+            type="date"
+            name="performance_cutoff_date"
+            value={form.performance_cutoff_date}
+            onChange={handleChange}
+          />
         </label>
         <button type="submit" className="submit-btn" disabled={creating}>
           {creating ? 'Menyimpan...' : 'Buat Portfolio'}

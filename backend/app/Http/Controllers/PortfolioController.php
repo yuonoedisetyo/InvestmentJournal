@@ -23,6 +23,7 @@ class PortfolioController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'currency' => ['nullable', 'string', 'max:10'],
             'initial_capital' => ['nullable', 'numeric', 'min:0'],
+            'performance_cutoff_date' => ['nullable', 'date'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 

@@ -42,6 +42,7 @@ class PortfolioService
                 'name' => $payload['name'],
                 'currency' => $payload['currency'] ?? 'IDR',
                 'initial_capital' => $payload['initial_capital'] ?? '0.0000',
+                'performance_cutoff_date' => $payload['performance_cutoff_date'] ?? null,
                 'is_active' => $shouldActivate,
             ]);
         });
@@ -259,11 +260,6 @@ class PortfolioService
         }
 
         $lastKnownIhsg = $openingIhsgRow ? (float) $openingIhsgRow->close : 0.0;
-        $previousNav = null;
-        $previousIhsgClose = $lastKnownIhsg > 0 ? $lastKnownIhsg : null;
-        $portfolioIndex = 100.0;
-        $benchmarkIndex = 100.0;
-        $benchmarkStartPrice = null;
         $series = [];
 
         foreach (CarbonPeriod::create($start, $end) as $date) {
@@ -294,20 +290,6 @@ class PortfolioService
             $totalModalDisetor += $modalDisetorDeltaByDate[$dateKey] ?? 0.0;
             $netAssetValue = $marketValue + $cashBalance;
             $externalFlow = $externalFlowByDate[$dateKey] ?? 0.0;
-            $portfolioDailyReturn = 0.0;
-            if ($previousNav !== null && $previousNav > 0) {
-                $portfolioDailyReturn = ($netAssetValue - $previousNav - $externalFlow) / $previousNav;
-                $portfolioIndex *= (1 + $portfolioDailyReturn);
-            }
-
-            $benchmarkDailyReturn = 0.0;
-            if ($lastKnownIhsg > 0 && $benchmarkStartPrice === null) {
-                $benchmarkStartPrice = $lastKnownIhsg;
-            }
-            if ($previousIhsgClose !== null && $previousIhsgClose > 0 && $lastKnownIhsg > 0) {
-                $benchmarkDailyReturn = ($lastKnownIhsg / $previousIhsgClose) - 1;
-                $benchmarkIndex *= (1 + $benchmarkDailyReturn);
-            }
 
             $series[] = [
                 'date' => $dateKey,
@@ -317,31 +299,47 @@ class PortfolioService
                 'total_modal_disetor' => round($totalModalDisetor, 4),
                 'total_asset_value' => round($netAssetValue, 4),
                 'net_flow' => round($externalFlow, 4),
-                'portfolio_daily_return' => round($portfolioDailyReturn * 100, 4),
-                'portfolio_index' => round($portfolioIndex, 2),
                 'benchmark_close' => round($lastKnownIhsg, 4),
-                'benchmark_daily_return' => round($benchmarkDailyReturn * 100, 4),
-                'benchmark_index' => round($benchmarkIndex, 2),
-                // Compatibility aliases for current frontend/chart consumers.
-                'portfolio' => round($portfolioIndex, 2),
-                'ihsg' => round($benchmarkIndex, 2),
+                'portfolio_daily_return' => 0.0,
+                'portfolio_index' => 100.0,
+                'benchmark_daily_return' => 0.0,
+                'benchmark_index' => 100.0,
+                'portfolio' => 100.0,
+                'ihsg' => 100.0,
             ];
-
-            $previousNav = $netAssetValue;
-            if ($lastKnownIhsg > 0) {
-                $previousIhsgClose = $lastKnownIhsg;
-            }
         }
 
-        $startNav = $series[0]['portfolio_nav'] ?? 0.0;
-        $endNav = $series !== [] ? $series[array_key_last($series)]['portfolio_nav'] : 0.0;
+        $defaultCutoffDate = $this->resolveDefaultPerformanceCutoffDate($userId, $portfolioId, $startDate);
+        $effectiveCutoffDate = $startDate;
+        if ($portfolio->performance_cutoff_date) {
+            $portfolioCutoffDate = Carbon::parse($portfolio->performance_cutoff_date)->toDateString();
+            if ($portfolioCutoffDate > $effectiveCutoffDate) {
+                $effectiveCutoffDate = $portfolioCutoffDate;
+            }
+        } elseif ($defaultCutoffDate > $effectiveCutoffDate) {
+            $effectiveCutoffDate = $defaultCutoffDate;
+        }
+        if ($effectiveCutoffDate > $endDate) {
+            $effectiveCutoffDate = $endDate;
+        }
+
+        $indexedSeries = $this->applyPerformanceCutoff($series, $effectiveCutoffDate);
+
+        $cutoffSeries = array_values(array_filter(
+            $indexedSeries,
+            fn (array $point): bool => (string) ($point['date'] ?? '') >= $effectiveCutoffDate
+        ));
+
+        $startNav = $cutoffSeries[0]['portfolio_nav'] ?? 0.0;
+        $endNav = $cutoffSeries !== [] ? $cutoffSeries[array_key_last($cutoffSeries)]['portfolio_nav'] : 0.0;
         $portfolioReturnNominal = $endNav - $startNav;
         $portfolioReturnPercent = $startNav > 0 ? ($portfolioReturnNominal / $startNav) * 100 : 0.0;
-        $benchmarkEndPrice = $series !== [] ? ($series[array_key_last($series)]['benchmark_close'] ?? 0.0) : 0.0;
-        $benchmarkReturnPercent = ($benchmarkStartPrice !== null && $benchmarkStartPrice > 0 && $benchmarkEndPrice > 0)
+        $benchmarkStartPrice = $cutoffSeries[0]['benchmark_close'] ?? 0.0;
+        $benchmarkEndPrice = $cutoffSeries !== [] ? ($cutoffSeries[array_key_last($cutoffSeries)]['benchmark_close'] ?? 0.0) : 0.0;
+        $benchmarkReturnPercent = ($benchmarkStartPrice > 0 && $benchmarkEndPrice > 0)
             ? (($benchmarkEndPrice - $benchmarkStartPrice) / $benchmarkStartPrice) * 100
             : 0.0;
-        $maxDrawdownPercent = $this->calculateMaxDrawdownPercent($series);
+        $maxDrawdownPercent = $this->calculateMaxDrawdownPercent($cutoffSeries);
 
         return [
             'meta' => [
@@ -350,7 +348,12 @@ class PortfolioService
                 'benchmark' => 'IHSG',
                 'method' => 'time_weighted_return',
                 'base_index' => 100,
-                'performance_cutoff_date' => $startDate,
+                'performance_cutoff_date' => $effectiveCutoffDate,
+                'default_cutoff_date' => $defaultCutoffDate,
+                'portfolio_cutoff_date' => $portfolio->performance_cutoff_date
+                    ? Carbon::parse($portfolio->performance_cutoff_date)->toDateString()
+                    : null,
+                'effective_performance_cutoff_date' => $effectiveCutoffDate,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'days' => $days,
@@ -370,7 +373,7 @@ class PortfolioService
                 ],
                 'alpha_percent' => round($portfolioReturnPercent - $benchmarkReturnPercent, 4),
             ],
-            'series' => $series,
+            'series' => $indexedSeries,
         ];
     }
 
@@ -420,5 +423,86 @@ class PortfolioService
         }
 
         return $maxDrawdown;
+    }
+
+    private function applyPerformanceCutoff(array $series, string $cutoffDate): array
+    {
+        $previousNav = null;
+        $previousIhsgClose = null;
+        $portfolioIndex = 100.0;
+        $benchmarkIndex = 100.0;
+        $hasStarted = false;
+
+        foreach ($series as $index => $point) {
+            $date = (string) ($point['date'] ?? '');
+
+            if ($date < $cutoffDate) {
+                continue;
+            }
+
+            $nav = (float) ($point['portfolio_nav'] ?? 0);
+            $netFlow = (float) ($point['net_flow'] ?? 0);
+            $benchmarkClose = (float) ($point['benchmark_close'] ?? 0);
+
+            if (! $hasStarted) {
+                $hasStarted = true;
+                $previousNav = $nav;
+                $previousIhsgClose = $benchmarkClose > 0 ? $benchmarkClose : null;
+                $series[$index]['portfolio_daily_return'] = 0.0;
+                $series[$index]['portfolio_index'] = 100.0;
+                $series[$index]['benchmark_daily_return'] = 0.0;
+                $series[$index]['benchmark_index'] = 100.0;
+                $series[$index]['portfolio'] = 100.0;
+                $series[$index]['ihsg'] = 100.0;
+                continue;
+            }
+
+            $portfolioDailyReturn = 0.0;
+            if ($previousNav !== null && $previousNav > 0) {
+                $portfolioDailyReturn = ($nav - $previousNav - $netFlow) / $previousNav;
+                $portfolioIndex *= (1 + $portfolioDailyReturn);
+            }
+
+            $benchmarkDailyReturn = 0.0;
+            if ($previousIhsgClose !== null && $previousIhsgClose > 0 && $benchmarkClose > 0) {
+                $benchmarkDailyReturn = ($benchmarkClose / $previousIhsgClose) - 1;
+                $benchmarkIndex *= (1 + $benchmarkDailyReturn);
+            }
+
+            $series[$index]['portfolio_daily_return'] = round($portfolioDailyReturn * 100, 4);
+            $series[$index]['portfolio_index'] = round($portfolioIndex, 2);
+            $series[$index]['benchmark_daily_return'] = round($benchmarkDailyReturn * 100, 4);
+            $series[$index]['benchmark_index'] = round($benchmarkIndex, 2);
+            $series[$index]['portfolio'] = round($portfolioIndex, 2);
+            $series[$index]['ihsg'] = round($benchmarkIndex, 2);
+
+            $previousNav = $nav;
+            if ($benchmarkClose > 0) {
+                $previousIhsgClose = $benchmarkClose;
+            }
+        }
+
+        return $series;
+    }
+
+    private function resolveDefaultPerformanceCutoffDate(int $userId, int $portfolioId, string $fallbackDate): string
+    {
+        $candidateDates = array_filter([
+            $this->performanceRepository->earliestStockTransactionDate($userId, $portfolioId),
+            $this->performanceRepository->earliestCashMutationDate($userId, $portfolioId),
+        ]);
+
+        if ($candidateDates === []) {
+            return $fallbackDate;
+        }
+
+        $normalizedDates = array_map(
+            static fn (string $value): string => Carbon::parse($value)->toDateString(),
+            $candidateDates
+        );
+
+        sort($normalizedDates);
+
+        return $normalizedDates[0] ?? $fallbackDate;
     }
 }
