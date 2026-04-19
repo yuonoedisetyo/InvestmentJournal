@@ -3,7 +3,7 @@ import { formatIDR } from '../../utils/format';
 
 const PAGE_SIZE = 10;
 
-export default function JournalTable({ data, onEdit, onDelete, onOpenTransactionForm }) {
+export default function JournalTable({ data, onEdit, onDelete, onOpenTransactionForm, readOnly = false }) {
   const [editingKey, setEditingKey] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState('');
@@ -94,11 +94,13 @@ export default function JournalTable({ data, onEdit, onDelete, onOpenTransaction
     <section className="panel">
       <div className="panel-head">
         <h2>Jurnal Transaksi</h2>
-        <div className="panel-head-actions">
-          <button type="button" className="table-btn" onClick={onOpenTransactionForm}>
-            Input Transaksi
-          </button>
-        </div>
+        {!readOnly ? (
+          <div className="panel-head-actions">
+            <button type="button" className="table-btn" onClick={onOpenTransactionForm}>
+              Input Transaksi
+            </button>
+          </div>
+        ) : null}
       </div>
       {data.length > 0 ? (
         <div className="panel-head">
@@ -168,13 +170,15 @@ export default function JournalTable({ data, onEdit, onDelete, onOpenTransaction
               <th>Total Nominal</th>
               <th>Fee</th>
               <th>Catatan</th>
-              <th>Aksi</th>
+              {!readOnly ? <th>Aksi</th> : null}
             </tr>
           </thead>
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan="9">{data.length === 0 ? 'Belum ada transaksi.' : 'Tidak ada data yang cocok dengan filter.'}</td>
+                <td colSpan={readOnly ? 8 : 9}>
+                  {data.length === 0 ? 'Belum ada transaksi.' : 'Tidak ada data yang cocok dengan filter.'}
+                </td>
               </tr>
             ) : (
               visibleRows.map((item) => (
@@ -231,27 +235,29 @@ export default function JournalTable({ data, onEdit, onDelete, onOpenTransaction
                       item.notes || '-'
                     )}
                   </td>
-                  <td className="journal-actions">
-                    {editingKey === item.row_key ? (
-                      <>
-                        <button type="button" className="table-btn" onClick={saveEdit}>
-                          Simpan
-                        </button>
-                        <button type="button" className="table-btn table-btn-muted" onClick={cancelEdit}>
-                          Batal
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button type="button" className="table-btn" onClick={() => startEdit(item)}>
-                          Edit
-                        </button>
-                        <button type="button" className="table-btn table-btn-danger" onClick={() => removeItem(item)}>
-                          Hapus
-                        </button>
-                      </>
-                    )}
-                  </td>
+                  {!readOnly ? (
+                    <td className="journal-actions">
+                      {editingKey === item.row_key ? (
+                        <>
+                          <button type="button" className="table-btn" onClick={saveEdit}>
+                            Simpan
+                          </button>
+                          <button type="button" className="table-btn table-btn-muted" onClick={cancelEdit}>
+                            Batal
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button type="button" className="table-btn" onClick={() => startEdit(item)}>
+                            Edit
+                          </button>
+                          <button type="button" className="table-btn table-btn-danger" onClick={() => removeItem(item)}>
+                            Hapus
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  ) : null}
                 </tr>
               ))
             )}

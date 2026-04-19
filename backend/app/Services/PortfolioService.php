@@ -11,6 +11,7 @@ use App\Repositories\PositionRepository;
 use App\Support\DecimalMath;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PortfolioService
 {
@@ -31,8 +32,9 @@ class PortfolioService
     {
         $shouldActivate = (bool) ($payload['is_active'] ?? false)
             || ! $this->portfolioRepository->hasAnyForUser($userId);
+        $isPublic = (bool) ($payload['is_public'] ?? false);
 
-        return DB::transaction(function () use ($userId, $payload, $shouldActivate): Portfolio {
+        return DB::transaction(function () use ($userId, $payload, $shouldActivate, $isPublic): Portfolio {
             if ($shouldActivate) {
                 $this->portfolioRepository->deactivateAllForUser($userId);
             }
@@ -43,9 +45,38 @@ class PortfolioService
                 'currency' => $payload['currency'] ?? 'IDR',
                 'initial_capital' => $payload['initial_capital'] ?? '0.0000',
                 'performance_cutoff_date' => $payload['performance_cutoff_date'] ?? null,
+                'is_public' => $isPublic,
+                'share_token' => $isPublic ? $this->generateShareToken() : null,
                 'is_active' => $shouldActivate,
             ]);
         });
+    }
+
+    public function updateSharing(int $userId, int $portfolioId, array $payload): Portfolio
+    {
+        $portfolio = $this->portfolioRepository->findOwned($userId, $portfolioId);
+        if (! $portfolio) {
+            abort(404, 'Portfolio not found.');
+        }
+
+        $isPublic = (bool) ($payload['is_public'] ?? false);
+        $portfolio->is_public = $isPublic;
+
+        if ($isPublic && ! $portfolio->share_token) {
+            $portfolio->share_token = $this->generateShareToken();
+        }
+
+        return $this->portfolioRepository->save($portfolio);
+    }
+
+    public function findPublicByShareToken(string $shareToken): Portfolio
+    {
+        $portfolio = $this->portfolioRepository->findPublicByShareToken($shareToken);
+        if (! $portfolio) {
+            abort(404, 'Public portfolio not found.');
+        }
+
+        return $portfolio;
     }
 
     public function activatePortfolio(int $userId, int $portfolioId): void
@@ -63,20 +94,23 @@ class PortfolioService
 
     public function listPositions(int $userId, int $portfolioId): array
     {
-        $portfolio = $this->portfolioRepository->findOwned($userId, $portfolioId);
-        if (! $portfolio) {
-            abort(404, 'Portfolio not found.');
-        }
+        return $this->listPositionsForPortfolio($this->requireOwnedPortfolio($userId, $portfolioId));
+    }
 
-        return $this->positionRepository->listWithLatestPriceByPortfolio($portfolioId)->toArray();
+    public function listPositionsForPortfolio(Portfolio $portfolio): array
+    {
+        return $this->positionRepository->listWithLatestPriceByPortfolio((int) $portfolio->id)->toArray();
     }
 
     public function capitalSummary(int $userId, int $portfolioId): array
     {
-        $portfolio = $this->portfolioRepository->findOwned($userId, $portfolioId);
-        if (! $portfolio) {
-            abort(404, 'Portfolio not found.');
-        }
+        return $this->capitalSummaryForPortfolio($this->requireOwnedPortfolio($userId, $portfolioId));
+    }
+
+    public function capitalSummaryForPortfolio(Portfolio $portfolio): array
+    {
+        $userId = (int) $portfolio->user_id;
+        $portfolioId = (int) $portfolio->id;
 
         $totalTopup = $this->cashMutationRepository->getTotalTopupByPortfolio($userId, $portfolioId);
         $totalWithdraw = $this->cashMutationRepository->getTotalWithdrawByPortfolio($userId, $portfolioId);
@@ -116,10 +150,13 @@ class PortfolioService
 
     public function performanceSeries(int $userId, int $portfolioId, int $days = 120): array
     {
-        $portfolio = $this->portfolioRepository->findOwned($userId, $portfolioId);
-        if (! $portfolio) {
-            abort(404, 'Portfolio not found.');
-        }
+        return $this->performanceSeriesForPortfolio($this->requireOwnedPortfolio($userId, $portfolioId), $days);
+    }
+
+    public function performanceSeriesForPortfolio(Portfolio $portfolio, int $days = 120): array
+    {
+        $userId = (int) $portfolio->user_id;
+        $portfolioId = (int) $portfolio->id;
 
         $days = max(7, min(3650, $days));
         $end = Carbon::today();
@@ -375,6 +412,25 @@ class PortfolioService
             ],
             'series' => $indexedSeries,
         ];
+    }
+
+    private function requireOwnedPortfolio(int $userId, int $portfolioId): Portfolio
+    {
+        $portfolio = $this->portfolioRepository->findOwned($userId, $portfolioId);
+        if (! $portfolio) {
+            abort(404, 'Portfolio not found.');
+        }
+
+        return $portfolio;
+    }
+
+    private function generateShareToken(): string
+    {
+        do {
+            $token = Str::random(40);
+        } while ($this->portfolioRepository->findByShareToken($token));
+
+        return $token;
     }
 
     private function applyStockTransaction(array &$holdings, array &$lastKnownPrice, float &$cashBalance, array $transaction): void

@@ -46,12 +46,16 @@ describe('api service helpers', () => {
     await apiModule.authApi.register({ name: 'A', identity: 'a', password: 'b' });
     await apiModule.authApi.me();
     await apiModule.portfolioApi.listPortfolios();
+    await apiModule.portfolioApi.getPublicPortfolio('share-token');
     await apiModule.portfolioApi.activatePortfolio(1);
+    await apiModule.portfolioApi.updateSharing(1, { is_public: true });
 
     expect(mockApi.post).toHaveBeenCalledWith('/auth/login', { identity: 'a', password: 'b' });
     expect(mockApi.post).toHaveBeenCalledWith('/auth/register', { name: 'A', identity: 'a', password: 'b' });
     expect(mockApi.get).toHaveBeenCalledWith('/auth/me');
     expect(mockApi.get).toHaveBeenCalledWith('/portfolios');
+    expect(mockApi.get).toHaveBeenCalledWith('/public/portfolios/share-token', { params: undefined });
     expect(mockApi.patch).toHaveBeenCalledWith('/portfolios/1/activate');
+    expect(mockApi.patch).toHaveBeenCalledWith('/portfolios/1/sharing', { is_public: true });
   });
 });

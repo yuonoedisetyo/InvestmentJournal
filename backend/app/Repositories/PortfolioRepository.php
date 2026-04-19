@@ -28,11 +28,33 @@ class PortfolioRepository
         return Portfolio::query()->create($payload);
     }
 
+    public function save(Portfolio $portfolio): Portfolio
+    {
+        $portfolio->save();
+
+        return $portfolio;
+    }
+
     public function findOwned(int $userId, int $portfolioId): ?Portfolio
     {
         return Portfolio::query()
             ->where('user_id', $userId)
             ->where('id', $portfolioId)
+            ->first();
+    }
+
+    public function findPublicByShareToken(string $shareToken): ?Portfolio
+    {
+        return Portfolio::query()
+            ->where('share_token', $shareToken)
+            ->where('is_public', true)
+            ->first();
+    }
+
+    public function findByShareToken(string $shareToken): ?Portfolio
+    {
+        return Portfolio::query()
+            ->where('share_token', $shareToken)
             ->first();
     }
 

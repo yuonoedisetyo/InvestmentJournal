@@ -2,10 +2,40 @@ import { useState } from 'react';
 import { formatIDR, formatPercent } from '../../utils/format';
 import StatCard from '../../components/StatCard';
 
-export default function PositionsTable({ positions, onUpdateLastPrice, summary, onSyncSpreadsheet, syncing = false }) {
+export default function PositionsTable({
+  positions,
+  onUpdateLastPrice,
+  summary,
+  onSyncSpreadsheet,
+  syncing = false,
+  readOnly = false,
+}) {
   const [editingCode, setEditingCode] = useState('');
   const [draftPrice, setDraftPrice] = useState('');
   const sortedPositions = [...positions].sort((a, b) => Number(b.market_value ?? 0) - Number(a.market_value ?? 0));
+  const latestSyncAt = positions
+    .map((item) => item.last_sync_at)
+    .filter(Boolean)
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null;
+
+  function formatSyncDateTime(value) {
+    if (!value) {
+      return '-';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '-';
+    }
+
+    return date.toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
 
   function getPortfolioShare(value, total) {
     const numericTotal = Number(total ?? 0);
@@ -59,9 +89,14 @@ export default function PositionsTable({ positions, onUpdateLastPrice, summary, 
       <div className="panel-head">
         <h2>Posisi Saham</h2>
         <div className="panel-head-actions">
-          <button type="button" className="table-btn" onClick={onSyncSpreadsheet} disabled={syncing}>
-            {syncing ? 'Syncing...' : 'Sync Harga'}
-          </button>
+          <div>
+            {!readOnly ? (
+              <button type="button" className="table-btn" onClick={onSyncSpreadsheet} disabled={syncing}>
+                {syncing ? 'Syncing...' : 'Sync Harga'}
+              </button>
+            ) : null}
+            <p>Terakhir sync harga: {formatSyncDateTime(latestSyncAt)}</p>
+          </div>
         </div>
       </div>
       <section className="summary-grid">
@@ -112,7 +147,7 @@ export default function PositionsTable({ positions, onUpdateLastPrice, summary, 
                 <td>{item.total_shares / 100}</td>
                 <td>{formatIDR(item.average_price)}</td>
                 <td>
-                  {editingCode === item.stock_code ? (
+                  {!readOnly && editingCode === item.stock_code ? (
                     <input
                       type="number"
                       min="0.0001"

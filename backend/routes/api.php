@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::get('/public/portfolios/{shareToken}', [PortfolioController::class, 'publicShow']);
 
 Route::middleware('auth.token')->group(function (): void {
     Route::get('/auth/me', [AuthController::class, 'me']);
@@ -19,6 +20,7 @@ Route::middleware('auth.token')->group(function (): void {
     Route::get('/portfolios', [PortfolioController::class, 'index']);
     Route::post('/portfolios', [PortfolioController::class, 'store']);
     Route::patch('/portfolios/{portfolio}/activate', [PortfolioController::class, 'activate']);
+    Route::patch('/portfolios/{portfolio}/sharing', [PortfolioController::class, 'updateSharing']);
     Route::get('/portfolios/{portfolio}/positions', [PortfolioController::class, 'positions']);
     Route::get('/portfolios/{portfolio}/cash-balance', [CashController::class, 'balance']);
     Route::get('/portfolios/{portfolio}/capital-summary', [PortfolioController::class, 'capitalSummary']);

@@ -74,6 +74,10 @@ export const portfolioApi = {
     const { data } = await api.get('/portfolios');
     return data;
   },
+  async getPublicPortfolio(shareToken, params) {
+    const { data } = await api.get(`/public/portfolios/${shareToken}`, { params });
+    return data;
+  },
   async listPositions(portfolioId) {
     const { data } = await api.get(`/portfolios/${portfolioId}/positions`);
     return data;
@@ -96,6 +100,10 @@ export const portfolioApi = {
   },
   async activatePortfolio(portfolioId) {
     const { data } = await api.patch(`/portfolios/${portfolioId}/activate`);
+    return data;
+  },
+  async updateSharing(portfolioId, payload) {
+    const { data } = await api.patch(`/portfolios/${portfolioId}/sharing`, payload);
     return data;
   },
 };

@@ -8,10 +8,12 @@ const mockAuthApi = {
 };
 
 const mockPortfolioApi = {
+  getPublicPortfolio: vi.fn(),
   listPositions: vi.fn(),
   cashBalance: vi.fn(),
   capitalSummary: vi.fn(),
   performance: vi.fn(),
+  updateSharing: vi.fn(),
 };
 
 const mockTransactionApi = {
@@ -78,13 +80,13 @@ vi.mock('./modules/portfolio/PortfolioSelector', () => ({
   ),
 }));
 vi.mock('./modules/portfolio/PositionsTable', () => ({
-  default: () => <div>PositionsTable</div>,
+  default: ({ readOnly = false }) => <div>{readOnly ? 'PositionsTable ReadOnly' : 'PositionsTable'}</div>,
 }));
 vi.mock('./modules/transactions/JournalTable', () => ({
-  default: ({ onOpenTransactionForm }) => (
+  default: ({ onOpenTransactionForm, readOnly = false }) => (
     <div>
-      <div>JournalTable</div>
-      <button onClick={onOpenTransactionForm}>Input Transaksi</button>
+      <div>{readOnly ? 'JournalTable ReadOnly' : 'JournalTable'}</div>
+      {!readOnly ? <button onClick={onOpenTransactionForm}>Input Transaksi</button> : null}
     </div>
   ),
 }));
@@ -96,10 +98,12 @@ describe('App', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    window.history.pushState({}, '', '/');
 
     mockReadStoredAuthSession.mockReturnValue(null);
     mockUseInvestmentStore.mockReturnValue({
       portfolios: [],
+      setPortfolios: vi.fn(),
       selectedPortfolio: null,
       selectedPortfolioId: null,
       setActivePortfolio: vi.fn(),
@@ -253,5 +257,38 @@ describe('App', () => {
 
     expect(mockClearAuthSession).toHaveBeenCalled();
     expect(screen.getByText('Sesi login telah berakhir.')).toBeInTheDocument();
+  });
+
+  it('renders public portfolio share page in read-only mode', async () => {
+    const { default: App } = await import('./App');
+
+    window.history.pushState({}, '', '/shared/portfolio/share-token-123');
+    mockPortfolioApi.getPublicPortfolio.mockResolvedValue({
+      portfolio: { id: 1, name: 'Public Growth', currency: 'IDR', is_public: true, share_token: 'share-token-123' },
+      positions: [],
+      journal: [],
+      capital_summary: {
+        total_modal_disetor: '0.0000',
+        total_topup: '0.0000',
+        total_withdraw: '0.0000',
+        cash_balance: '0.0000',
+        net_asset_value: '0.0000',
+        overall_return: { nominal: '0.0000', percent: '0.0000' },
+      },
+      performance: { meta: null, summary: null, series: [] },
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(mockPortfolioApi.getPublicPortfolio).toHaveBeenCalledWith('share-token-123');
+    });
+
+    expect(screen.getByText('Public Growth')).toBeInTheDocument();
+    expect(screen.getByText(/Tampilan read-only/)).toBeInTheDocument();
+    expect(screen.getByText('PositionsTable ReadOnly')).toBeInTheDocument();
+    expect(screen.getByText('JournalTable ReadOnly')).toBeInTheDocument();
+    expect(screen.queryByText('PortfolioSelector')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Input Transaksi' })).not.toBeInTheDocument();
   });
 });

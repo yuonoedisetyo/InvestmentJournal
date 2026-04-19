@@ -134,4 +134,80 @@ class PortfolioApiTest extends TestCase
                 ],
             ]);
     }
+
+    public function test_it_can_toggle_portfolio_public_sharing_and_read_public_snapshot(): void
+    {
+        $user = User::factory()->create();
+        $headers = $this->authHeaders($user);
+
+        $portfolio = $this->withHeaders($headers)->postJson('/api/portfolios', [
+            'name' => 'Public Growth',
+            'currency' => 'IDR',
+            'is_active' => true,
+            'is_public' => false,
+        ])->assertCreated();
+
+        $portfolioId = (int) $portfolio->json('id');
+
+        PortfolioPosition::query()->create([
+            'portfolio_id' => $portfolioId,
+            'stock_code' => 'BBCA',
+            'total_shares' => 100,
+            'average_price' => '9000.00000000',
+            'invested_amount' => '900000.0000',
+            'realized_pnl' => '0.0000',
+            'dividend_income' => '0.0000',
+        ]);
+
+        StockPrice::query()->create([
+            'stock_code' => 'BBCA',
+            'price' => '9500.0000',
+            'price_date' => '2026-03-21',
+            'source' => 'TEST',
+        ]);
+
+        CashMutation::query()->create([
+            'user_id' => $user->id,
+            'portfolio_id' => $portfolioId,
+            'type' => CashMutation::TYPE_DEPOSIT,
+            'amount' => '1000000.0000',
+            'description' => 'Public share seed',
+            'created_at' => '2026-03-21 00:00:00',
+            'updated_at' => now(),
+        ]);
+
+        $shareResponse = $this->withHeaders($headers)->patchJson("/api/portfolios/{$portfolioId}/sharing", [
+            'is_public' => true,
+        ])->assertOk();
+
+        $shareToken = $shareResponse->json('share_token');
+
+        $this->assertNotEmpty($shareToken);
+        $this->assertDatabaseHas('portfolios', [
+            'id' => $portfolioId,
+            'is_public' => true,
+            'share_token' => $shareToken,
+        ]);
+
+        $this->getJson("/api/public/portfolios/{$shareToken}")
+            ->assertOk()
+            ->assertJsonPath('portfolio.name', 'Public Growth')
+            ->assertJsonPath('portfolio.is_public', true)
+            ->assertJsonPath('positions.0.stock_code', 'BBCA')
+            ->assertJsonPath('capital_summary.cash_balance', '1000000.0000')
+            ->assertJsonStructure([
+                'portfolio' => ['id', 'name', 'currency', 'is_public', 'share_token'],
+                'positions',
+                'capital_summary',
+                'performance' => ['meta', 'summary', 'series'],
+                'journal',
+            ]);
+
+        $this->withHeaders($headers)->patchJson("/api/portfolios/{$portfolioId}/sharing", [
+            'is_public' => false,
+        ])->assertOk();
+
+        $this->getJson("/api/public/portfolios/{$shareToken}")
+            ->assertStatus(404);
+    }
 }

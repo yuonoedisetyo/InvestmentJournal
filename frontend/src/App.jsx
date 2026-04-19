@@ -19,7 +19,68 @@ import {
 } from './services/api';
 import { useInvestmentStore } from './store/useInvestmentStore';
 
+function extractPublicShareToken() {
+  const match = window.location.pathname.match(/^\/shared\/portfolio\/([^/]+)$/);
+  return match?.[1] ?? null;
+}
+
+function normalizePositions(data) {
+  return Array.isArray(data)
+    ? data.map((item) => ({
+        stock_code: item.stock_code,
+        total_shares: Number(item.total_shares ?? 0),
+        average_price: Number(item.average_price ?? 0),
+        last_price: Number(item.last_price ?? 0),
+        last_price_date: item.last_price_date ?? null,
+        last_sync_at: item.last_sync_at ?? null,
+        invested_amount: Number(item.invested_amount ?? 0),
+        market_value: Number(item.market_value ?? 0),
+        unrealized_pnl: Number(item.unrealized_pnl ?? 0),
+        realized_pnl: Number(item.realized_pnl ?? 0),
+      }))
+    : [];
+}
+
+function normalizeJournal(data) {
+  return Array.isArray(data)
+    ? data.map((item) => ({
+        id: item.id,
+        entry_type: item.entry_type || 'STOCK',
+        row_key: `${item.entry_type || 'STOCK'}-${item.id}`,
+        transaction_date: String(item.transaction_date).slice(0, 10),
+        type: item.type,
+        stock_code: item.stock_code,
+        lot: item.lot == null ? null : Number(item.lot),
+        price: item.price == null ? null : Number(item.price),
+        amount: Number(item.amount ?? item.net_amount ?? 0),
+        fee: Number(item.fee ?? 0),
+        notes: item.notes,
+      }))
+    : [];
+}
+
+function normalizePerformance(data) {
+  if (Array.isArray(data)) {
+    return {
+      meta: { benchmark: 'IHSG', method: 'normalized_nav', base_index: 100 },
+      summary: null,
+      series: data.map((item) => ({
+        ...item,
+        portfolio_index: Number(item.portfolio ?? 100),
+        benchmark_index: Number(item.ihsg ?? 100),
+      })),
+    };
+  }
+
+  return {
+    meta: data?.meta ?? null,
+    summary: data?.summary ?? null,
+    series: Array.isArray(data?.series) ? data.series : [],
+  };
+}
+
 function App() {
+  const publicShareToken = extractPublicShareToken();
   const [authMode, setAuthMode] = useState('login');
   const [sessionUser, setSessionUser] = useState(() => readStoredAuthSession()?.user || null);
   const [isCheckingSession, setIsCheckingSession] = useState(() => Boolean(readStoredAuthSession()?.token));
@@ -35,6 +96,10 @@ function App() {
     identity: '',
     password: '',
   });
+
+  if (publicShareToken) {
+    return <PublicPortfolioApp shareToken={publicShareToken} />;
+  }
 
   function handleLoginInputChange(event) {
     const { name, value } = event.target;
@@ -325,6 +390,7 @@ function App() {
 function AuthenticatedApp({ sessionUser, onLogout }) {
   const {
     portfolios,
+    setPortfolios,
     selectedPortfolio,
     selectedPortfolioId,
     setActivePortfolio,
@@ -343,6 +409,7 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
   const [cashBalance, setCashBalance] = useState(0);
   const [capitalSummary, setCapitalSummary] = useState(null);
   const [isSyncingSpreadsheet, setIsSyncingSpreadsheet] = useState(false);
+  const [isUpdatingSharing, setIsUpdatingSharing] = useState(false);
 
   async function loadPositions(portfolioId = selectedPortfolioId) {
     if (!portfolioId) {
@@ -352,19 +419,7 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
 
     try {
       const data = await portfolioApi.listPositions(portfolioId);
-      const normalized = Array.isArray(data)
-        ? data.map((item) => ({
-            stock_code: item.stock_code,
-            total_shares: Number(item.total_shares ?? 0),
-            average_price: Number(item.average_price ?? 0),
-            last_price: Number(item.last_price ?? 0),
-            invested_amount: Number(item.invested_amount ?? 0),
-            market_value: Number(item.market_value ?? 0),
-            unrealized_pnl: Number(item.unrealized_pnl ?? 0),
-            realized_pnl: Number(item.realized_pnl ?? 0),
-          }))
-        : [];
-      setPositions(normalized);
+      setPositions(normalizePositions(data));
     } catch {
       setPositions([]);
     }
@@ -378,22 +433,7 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
 
     try {
       const data = await transactionApi.listJournal(portfolioId);
-      const normalized = Array.isArray(data)
-        ? data.map((item) => ({
-            id: item.id,
-            entry_type: item.entry_type || 'STOCK',
-            row_key: `${item.entry_type || 'STOCK'}-${item.id}`,
-            transaction_date: String(item.transaction_date).slice(0, 10),
-            type: item.type,
-            stock_code: item.stock_code,
-            lot: item.lot == null ? null : Number(item.lot),
-            price: item.price == null ? null : Number(item.price),
-            amount: Number(item.amount ?? item.net_amount ?? 0),
-            fee: Number(item.fee ?? 0),
-            notes: item.notes,
-          }))
-        : [];
-      setJournalData(normalized);
+      setJournalData(normalizeJournal(data));
     } catch {
       setJournalData([]);
     }
@@ -438,24 +478,7 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
 
     try {
       const data = await portfolioApi.performance(portfolioId);
-      if (Array.isArray(data)) {
-        setPerformanceData({
-          meta: { benchmark: 'IHSG', method: 'normalized_nav', base_index: 100 },
-          summary: null,
-          series: data.map((item) => ({
-            ...item,
-            portfolio_index: Number(item.portfolio ?? 100),
-            benchmark_index: Number(item.ihsg ?? 100),
-          })),
-        });
-        return;
-      }
-
-      setPerformanceData({
-        meta: data?.meta ?? null,
-        summary: data?.summary ?? null,
-        series: Array.isArray(data?.series) ? data.series : [],
-      });
+      setPerformanceData(normalizePerformance(data));
     } catch {
       setPerformanceData({ meta: null, summary: null, series: [] });
     }
@@ -685,6 +708,42 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
     }
   }
 
+  async function handleUpdateSharing(portfolioId, isPublic) {
+    try {
+      setIsUpdatingSharing(true);
+      const updated = await portfolioApi.updateSharing(portfolioId, { is_public: isPublic });
+      setPortfolios((current) =>
+        current.map((item) => (item.id === portfolioId ? { ...item, ...updated } : item))
+      );
+      await refreshPortfolioData(portfolioId);
+      setNotice(
+        updated?.is_public
+          ? `Portfolio ${updated.name} sekarang public dan bisa dibagikan lewat link.`
+          : `Portfolio ${updated.name} sekarang private.`
+      );
+    } catch (error) {
+      const message = error?.response?.data?.message || 'Gagal mengubah pengaturan share portfolio.';
+      setNotice(message);
+    } finally {
+      setIsUpdatingSharing(false);
+      setTimeout(() => setNotice(''), 2400);
+    }
+  }
+
+  async function handleCopyShareLink(portfolio) {
+    const shareLink = `${window.location.origin}/shared/portfolio/${portfolio.share_token}`;
+
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setNotice('Link portfolio public berhasil disalin.');
+    } catch {
+      window.prompt('Salin link portfolio public ini:', shareLink);
+      setNotice('Link portfolio public siap disalin.');
+    } finally {
+      setTimeout(() => setNotice(''), 2400);
+    }
+  }
+
   return (
     <div className="app-shell">
       <div className="ambient ambient-a" />
@@ -697,8 +756,12 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
         <PortfolioSelector
           portfolios={portfolios}
           selectedPortfolioId={selectedPortfolioId}
+          selectedPortfolio={selectedPortfolio}
           onChange={handleChangePortfolio}
           onOpenCreateForm={() => setActiveView('portfolio-create')}
+          onSharingChange={handleUpdateSharing}
+          onCopyShareLink={handleCopyShareLink}
+          updatingSharing={isUpdatingSharing}
           showCreateButton={activeView !== 'transactions'}
         />
 
@@ -756,6 +819,88 @@ function AuthenticatedApp({ sessionUser, onLogout }) {
             />
           </>
         )}
+      </main>
+    </div>
+  );
+}
+
+function PublicPortfolioApp({ shareToken }) {
+  const [notice, setNotice] = useState('');
+  const [portfolio, setPortfolio] = useState(null);
+  const [positions, setPositions] = useState([]);
+  const [journalData, setJournalData] = useState([]);
+  const [capitalSummary, setCapitalSummary] = useState(null);
+  const [performanceData, setPerformanceData] = useState({ meta: null, summary: null, series: [] });
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadPublicPortfolio() {
+      try {
+        const data = await portfolioApi.getPublicPortfolio(shareToken);
+        if (!active) {
+          return;
+        }
+
+        setPortfolio(data?.portfolio ?? null);
+        setPositions(normalizePositions(data?.positions ?? []));
+        setJournalData(normalizeJournal(data?.journal ?? []));
+        setCapitalSummary(data?.capital_summary ?? null);
+        setPerformanceData(normalizePerformance(data?.performance ?? { meta: null, summary: null, series: [] }));
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+
+        setNotice(error?.response?.data?.message || 'Portfolio public tidak ditemukan atau tidak lagi tersedia.');
+      }
+    }
+
+    loadPublicPortfolio();
+
+    return () => {
+      active = false;
+    };
+  }, [shareToken]);
+
+  const summary = {
+    invested: positions.reduce((acc, item) => acc + Number(item.invested_amount ?? 0), 0),
+    marketValue: positions.reduce((acc, item) => acc + Number(item.market_value ?? 0), 0),
+    unrealized: positions.reduce((acc, item) => acc + Number(item.unrealized_pnl ?? 0), 0),
+    realized: positions.reduce((acc, item) => acc + Number(item.realized_pnl ?? 0), 0),
+    pnlPercent: 0,
+  };
+
+  return (
+    <div className="app-shell">
+      <div className="ambient ambient-a" />
+      <div className="ambient ambient-b" />
+      <main className="app-main">
+        <Header />
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <h2 style={{ marginBottom: '0.25rem' }}>{portfolio?.name || 'Portfolio Public'}</h2>
+              <p style={{ margin: 0, color: 'var(--muted-text, #64748b)' }}>
+                Tampilan read-only. Data hanya bisa dilihat lewat link ini.
+              </p>
+            </div>
+          </div>
+        </section>
+        {notice ? <div className="notice notice-error">{notice}</div> : null}
+        <section className="two-col">
+          <PerformanceChart data={performanceData} />
+          <CapitalComparisonChart data={performanceData} summary={summary} capitalSummary={capitalSummary} />
+        </section>
+        <SummaryCards summary={summary} cashBalance={Number(capitalSummary?.cash_balance ?? 0)} capitalSummary={capitalSummary} />
+        <PositionsTable
+          summary={summary}
+          positions={positions}
+          onUpdateLastPrice={() => {}}
+          onSyncSpreadsheet={() => {}}
+          readOnly
+        />
+        <JournalTable data={journalData} onEdit={() => {}} onDelete={() => {}} onOpenTransactionForm={() => {}} readOnly />
       </main>
     </div>
   );

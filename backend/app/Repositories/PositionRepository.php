@@ -31,6 +31,8 @@ class PositionRepository
                 pp.average_price,
                 pp.invested_amount,
                 pp.realized_pnl,
+                sp.price_date as last_price_date,
+                sp.updated_at as last_sync_at,
                 COALESCE(sp.price, pp.average_price) as last_price,
                 (pp.total_shares * COALESCE(sp.price, pp.average_price)) as market_value,
                 ((pp.total_shares * COALESCE(sp.price, pp.average_price)) - pp.invested_amount) as unrealized_pnl'

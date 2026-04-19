@@ -5,6 +5,7 @@ function createInitialForm() {
     name: '',
     currency: 'IDR',
     performance_cutoff_date: '',
+    is_public: false,
   };
 }
 
@@ -30,6 +31,7 @@ export default function PortfolioForm({ onSubmit, creating = false }) {
       currency: form.currency,
       initial_capital: 0,
       performance_cutoff_date: form.performance_cutoff_date || null,
+      is_public: form.is_public,
       is_active: true,
     });
 
@@ -68,6 +70,22 @@ export default function PortfolioForm({ onSubmit, creating = false }) {
             value={form.performance_cutoff_date}
             onChange={handleChange}
           />
+        </label>
+        <label>
+          Share Portfolio
+          <select
+            name="is_public"
+            value={form.is_public ? 'public' : 'private'}
+            onChange={(event) =>
+              setForm((prev) => ({
+                ...prev,
+                is_public: event.target.value === 'public',
+              }))
+            }
+          >
+            <option value="private">Private</option>
+            <option value="public">Public</option>
+          </select>
         </label>
         <button type="submit" className="submit-btn" disabled={creating}>
           {creating ? 'Menyimpan...' : 'Buat Portfolio'}

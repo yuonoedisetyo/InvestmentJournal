@@ -15,12 +15,15 @@ class Portfolio extends Model
         'currency',
         'initial_capital',
         'performance_cutoff_date',
+        'is_public',
+        'share_token',
         'is_active',
     ];
 
     protected $casts = [
         'initial_capital' => 'decimal:4',
         'performance_cutoff_date' => 'date',
+        'is_public' => 'boolean',
         'is_active' => 'boolean',
     ];
 }

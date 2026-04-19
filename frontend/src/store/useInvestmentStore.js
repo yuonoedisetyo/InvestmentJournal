@@ -158,6 +158,7 @@ export function useInvestmentStore() {
 
   return {
     portfolios,
+    setPortfolios,
     selectedPortfolio,
     selectedPortfolioId,
     setActivePortfolio,
