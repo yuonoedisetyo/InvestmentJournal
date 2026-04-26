@@ -28,6 +28,11 @@ class PortfolioService
         return $this->portfolioRepository->listByUser($userId);
     }
 
+    public function listPublic()
+    {
+        return $this->portfolioRepository->listPublic();
+    }
+
     public function create(int $userId, array $payload): Portfolio
     {
         $shouldActivate = (bool) ($payload['is_active'] ?? false)

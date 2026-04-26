@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Portfolio;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class PortfolioRepository
 {
@@ -49,6 +50,24 @@ class PortfolioRepository
             ->where('share_token', $shareToken)
             ->where('is_public', true)
             ->first();
+    }
+
+    public function listPublic(): Collection
+    {
+        return Portfolio::query()
+            ->from('portfolios')
+            ->join('users', 'users.id', '=', 'portfolios.user_id')
+            ->where('portfolios.is_public', true)
+            ->whereNotNull('portfolios.share_token')
+            ->orderByDesc('portfolios.updated_at')
+            ->get([
+                'portfolios.id',
+                'portfolios.name',
+                'portfolios.currency',
+                'portfolios.share_token',
+                'portfolios.updated_at',
+                DB::raw('users.name as owner_name'),
+            ]);
     }
 
     public function findByShareToken(string $shareToken): ?Portfolio

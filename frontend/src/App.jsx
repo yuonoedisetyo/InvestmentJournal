@@ -8,6 +8,12 @@ import PortfolioSelector from './modules/portfolio/PortfolioSelector';
 import PositionsTable from './modules/portfolio/PositionsTable';
 import JournalTable from './modules/transactions/JournalTable';
 import TransactionForm from './modules/transactions/TransactionForm';
+import ArticleDetailPage from './modules/public/ArticleDetailPage';
+import ArticlesPage from './modules/public/ArticlesPage';
+import DcfCalculatorPage from './modules/public/DcfCalculatorPage';
+import LandingPage from './modules/public/LandingPage';
+import PublicLayout from './modules/public/PublicLayout';
+import PublicPortfoliosPage from './modules/public/PublicPortfoliosPage';
 import {
   authApi,
   clearAuthSession,
@@ -19,9 +25,48 @@ import {
 } from './services/api';
 import { useInvestmentStore } from './store/useInvestmentStore';
 
-function extractPublicShareToken() {
-  const match = window.location.pathname.match(/^\/shared\/portfolio\/([^/]+)$/);
+function extractPublicShareToken(pathname) {
+  const match = pathname.match(/^\/shared\/portfolio\/([^/]+)$/);
   return match?.[1] ?? null;
+}
+
+function extractArticleSlug(pathname) {
+  const match = pathname.match(/^\/articles\/([^/]+)$/);
+  return match?.[1] ?? null;
+}
+
+function resolveRoute(pathname) {
+  const publicShareToken = extractPublicShareToken(pathname);
+  if (publicShareToken) {
+    return { type: 'shared-portfolio', shareToken: publicShareToken };
+  }
+
+  const articleSlug = extractArticleSlug(pathname);
+  if (articleSlug) {
+    return { type: 'article-detail', slug: articleSlug };
+  }
+
+  if (pathname === '/login') {
+    return { type: 'login' };
+  }
+
+  if (pathname === '/app') {
+    return { type: 'app' };
+  }
+
+  if (pathname === '/articles') {
+    return { type: 'articles' };
+  }
+
+  if (pathname === '/calculator/dcf') {
+    return { type: 'calculator-dcf' };
+  }
+
+  if (pathname === '/public-portfolios') {
+    return { type: 'public-portfolios' };
+  }
+
+  return { type: 'landing' };
 }
 
 function normalizePositions(data) {
@@ -79,8 +124,119 @@ function normalizePerformance(data) {
   };
 }
 
+function AuthShell({ authMode, setAuthMode, isSubmittingAuth, authNotice, authError, loginForm, registerForm, onLoginInputChange, onRegisterInputChange, onLogin, onRegister, checkingSession = false }) {
+  return (
+    <div className="app-shell auth-shell">
+      <div className="ambient ambient-a" />
+      <div className="ambient ambient-b" />
+      <main className="auth-main">
+        <section className="auth-hero">
+          <p className="eyebrow">Investment Journal</p>
+          <h1>{checkingSession ? 'Memeriksa sesi login...' : 'Login dulu untuk akses dashboard investasi Anda.'}</h1>
+          <p className="subtitle">
+            Register hanya butuh nama, email / nohp, dan password. Setelah login, seluruh fitur dashboard tetap bisa
+            dipakai seperti sebelumnya.
+          </p>
+        </section>
+
+        <section className="auth-card panel">
+          {checkingSession ? (
+            <h2>Memeriksa sesi login...</h2>
+          ) : (
+            <>
+              <div className="auth-tabs" role="tablist" aria-label="Pilih halaman autentikasi">
+                <button
+                  type="button"
+                  className={`auth-tab ${authMode === 'login' ? 'active' : ''}`}
+                  onClick={() => setAuthMode('login')}
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  className={`auth-tab ${authMode === 'register' ? 'active' : ''}`}
+                  onClick={() => setAuthMode('register')}
+                >
+                  Register
+                </button>
+              </div>
+
+              {authNotice ? <div className="notice">{authNotice}</div> : null}
+              {authError ? <div className="notice notice-error">{authError}</div> : null}
+
+              {authMode === 'login' ? (
+                <form className="auth-form" onSubmit={onLogin}>
+                  <label>
+                    Email / nohp
+                    <input
+                      type="text"
+                      name="identity"
+                      placeholder="nama@email.com atau 0812xxxx"
+                      value={loginForm.identity}
+                      onChange={onLoginInputChange}
+                    />
+                  </label>
+                  <label>
+                    Password
+                    <input
+                      type="password"
+                      name="password"
+                      placeholder="Masukkan password"
+                      value={loginForm.password}
+                      onChange={onLoginInputChange}
+                    />
+                  </label>
+                  <button type="submit" className="submit-btn auth-submit-btn" disabled={isSubmittingAuth}>
+                    {isSubmittingAuth ? 'Memproses...' : 'Masuk ke aplikasi'}
+                  </button>
+                </form>
+              ) : (
+                <form className="auth-form" onSubmit={onRegister}>
+                  <label>
+                    Nama
+                    <input
+                      type="text"
+                      name="name"
+                      placeholder="Nama lengkap"
+                      value={registerForm.name}
+                      onChange={onRegisterInputChange}
+                    />
+                  </label>
+                  <label>
+                    Email / nohp
+                    <input
+                      type="text"
+                      name="identity"
+                      placeholder="nama@email.com atau 0812xxxx"
+                      value={registerForm.identity}
+                      onChange={onRegisterInputChange}
+                    />
+                  </label>
+                  <label>
+                    Password
+                    <input
+                      type="password"
+                      name="password"
+                      placeholder="Buat password"
+                      value={registerForm.password}
+                      onChange={onRegisterInputChange}
+                    />
+                  </label>
+                  <button type="submit" className="submit-btn auth-submit-btn" disabled={isSubmittingAuth}>
+                    {isSubmittingAuth ? 'Memproses...' : 'Buat akun'}
+                  </button>
+                </form>
+              )}
+            </>
+          )}
+        </section>
+      </main>
+    </div>
+  );
+}
+
 function App() {
-  const publicShareToken = extractPublicShareToken();
+  const [pathname, setPathname] = useState(window.location.pathname);
   const [authMode, setAuthMode] = useState('login');
   const [sessionUser, setSessionUser] = useState(() => readStoredAuthSession()?.user || null);
   const [isCheckingSession, setIsCheckingSession] = useState(() => Boolean(readStoredAuthSession()?.token));
@@ -97,25 +253,17 @@ function App() {
     password: '',
   });
 
-  if (publicShareToken) {
-    return <PublicPortfolioApp shareToken={publicShareToken} />;
-  }
+  useEffect(() => {
+    function handlePopState() {
+      setPathname(window.location.pathname);
+    }
 
-  function handleLoginInputChange(event) {
-    const { name, value } = event.target;
-    setLoginForm((current) => ({
-      ...current,
-      [name]: value,
-    }));
-  }
+    window.addEventListener('popstate', handlePopState);
 
-  function handleRegisterInputChange(event) {
-    const { name, value } = event.target;
-    setRegisterForm((current) => ({
-      ...current,
-      [name]: value,
-    }));
-  }
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   useEffect(() => {
     const storedSession = readStoredAuthSession();
@@ -157,6 +305,29 @@ function App() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isCheckingSession && sessionUser && pathname === '/login') {
+      window.history.replaceState({}, '', '/app');
+      setPathname('/app');
+    }
+  }, [isCheckingSession, pathname, sessionUser]);
+
+  function handleLoginInputChange(event) {
+    const { name, value } = event.target;
+    setLoginForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  function handleRegisterInputChange(event) {
+    const { name, value } = event.target;
+    setRegisterForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
 
   async function handleRegister(event) {
     event.preventDefault();
@@ -232,6 +403,8 @@ function App() {
         identity: '',
         password: '',
       });
+      window.history.pushState({}, '', '/app');
+      setPathname('/app');
     } catch (error) {
       const message =
         error?.response?.data?.errors?.identity?.[0] ||
@@ -254,137 +427,93 @@ function App() {
       setAuthMode('login');
       setAuthNotice('Sesi login telah berakhir.');
       setAuthError('');
+      window.history.pushState({}, '', '/login');
+      setPathname('/login');
     }
   }
 
-  if (isCheckingSession) {
+  const route = resolveRoute(pathname);
+
+  if (route.type === 'shared-portfolio') {
+    return <PublicPortfolioApp shareToken={route.shareToken} />;
+  }
+
+  if (isCheckingSession && route.type === 'app') {
     return (
-      <div className="app-shell auth-shell">
-        <div className="ambient ambient-a" />
-        <div className="ambient ambient-b" />
-        <main className="auth-main">
-          <section className="auth-card panel">
-            <h2>Memeriksa sesi login...</h2>
-          </section>
-        </main>
-      </div>
+      <AuthShell
+        authMode={authMode}
+        setAuthMode={setAuthMode}
+        isSubmittingAuth={isSubmittingAuth}
+        authNotice={authNotice}
+        authError={authError}
+        loginForm={loginForm}
+        registerForm={registerForm}
+        onLoginInputChange={handleLoginInputChange}
+        onRegisterInputChange={handleRegisterInputChange}
+        onLogin={handleLogin}
+        onRegister={handleRegister}
+        checkingSession
+      />
     );
   }
 
-  if (!sessionUser) {
+  if (route.type === 'login') {
     return (
-      <div className="app-shell auth-shell">
-        <div className="ambient ambient-a" />
-        <div className="ambient ambient-b" />
-        <main className="auth-main">
-          <section className="auth-hero">
-            <p className="eyebrow">Investment Journal</p>
-            <h1>Login dulu untuk akses dashboard investasi Anda.</h1>
-            <p className="subtitle">
-              Register hanya butuh nama, email / nohp, dan password. Setelah login, seluruh fitur aplikasi baru
-              akan terbuka.
-            </p>
-          </section>
-
-          <section className="auth-card panel">
-            <div className="auth-tabs" role="tablist" aria-label="Pilih halaman autentikasi">
-              <button
-                type="button"
-                className={`auth-tab ${authMode === 'login' ? 'active' : ''}`}
-                onClick={() => {
-                  setAuthMode('login');
-                  setAuthError('');
-                  setAuthNotice('');
-                }}
-              >
-                Login
-              </button>
-              <button
-                type="button"
-                className={`auth-tab ${authMode === 'register' ? 'active' : ''}`}
-                onClick={() => {
-                  setAuthMode('register');
-                  setAuthError('');
-                  setAuthNotice('');
-                }}
-              >
-                Register
-              </button>
-            </div>
-
-            {authNotice ? <div className="notice">{authNotice}</div> : null}
-            {authError ? <div className="notice notice-error">{authError}</div> : null}
-
-            {authMode === 'login' ? (
-              <form className="auth-form" onSubmit={handleLogin}>
-                <label>
-                  Email / nohp
-                  <input
-                    type="text"
-                    name="identity"
-                    placeholder="nama@email.com atau 0812xxxx"
-                    value={loginForm.identity}
-                    onChange={handleLoginInputChange}
-                  />
-                </label>
-                <label>
-                  Password
-                  <input
-                    type="password"
-                    name="password"
-                    placeholder="Masukkan password"
-                    value={loginForm.password}
-                    onChange={handleLoginInputChange}
-                  />
-                </label>
-                <button type="submit" className="submit-btn auth-submit-btn" disabled={isSubmittingAuth}>
-                  {isSubmittingAuth ? 'Memproses...' : 'Masuk ke aplikasi'}
-                </button>
-              </form>
-            ) : (
-              <form className="auth-form" onSubmit={handleRegister}>
-                <label>
-                  Nama
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="Nama lengkap"
-                    value={registerForm.name}
-                    onChange={handleRegisterInputChange}
-                  />
-                </label>
-                <label>
-                  Email / nohp
-                  <input
-                    type="text"
-                    name="identity"
-                    placeholder="nama@email.com atau 0812xxxx"
-                    value={registerForm.identity}
-                    onChange={handleRegisterInputChange}
-                  />
-                </label>
-                <label>
-                  Password
-                  <input
-                    type="password"
-                    name="password"
-                    placeholder="Buat password"
-                    value={registerForm.password}
-                    onChange={handleRegisterInputChange}
-                  />
-                </label>
-                <button type="submit" className="submit-btn auth-submit-btn" disabled={isSubmittingAuth}>
-                  {isSubmittingAuth ? 'Memproses...' : 'Buat akun'}
-                </button>
-              </form>
-            )}
-          </section>
-        </main>
-      </div>
+      <AuthShell
+        authMode={authMode}
+        setAuthMode={(mode) => {
+          setAuthMode(mode);
+          setAuthError('');
+          setAuthNotice('');
+        }}
+        isSubmittingAuth={isSubmittingAuth}
+        authNotice={authNotice}
+        authError={authError}
+        loginForm={loginForm}
+        registerForm={registerForm}
+        onLoginInputChange={handleLoginInputChange}
+        onRegisterInputChange={handleRegisterInputChange}
+        onLogin={handleLogin}
+        onRegister={handleRegister}
+      />
     );
   }
 
-  return <AuthenticatedApp sessionUser={sessionUser} onLogout={handleLogout} />;
+  if (route.type === 'app') {
+    if (!sessionUser) {
+      return (
+        <AuthShell
+          authMode={authMode}
+          setAuthMode={(mode) => {
+            setAuthMode(mode);
+            setAuthError('');
+            setAuthNotice('');
+          }}
+          isSubmittingAuth={isSubmittingAuth}
+          authNotice={authNotice}
+          authError={authError}
+          loginForm={loginForm}
+          registerForm={registerForm}
+          onLoginInputChange={handleLoginInputChange}
+          onRegisterInputChange={handleRegisterInputChange}
+          onLogin={handleLogin}
+          onRegister={handleRegister}
+        />
+      );
+    }
+
+    return <AuthenticatedApp sessionUser={sessionUser} onLogout={handleLogout} />;
+  }
+
+  return (
+    <PublicLayout sessionUser={sessionUser}>
+      {route.type === 'articles' ? <ArticlesPage /> : null}
+      {route.type === 'article-detail' ? <ArticleDetailPage slug={route.slug} /> : null}
+      {route.type === 'calculator-dcf' ? <DcfCalculatorPage /> : null}
+      {route.type === 'public-portfolios' ? <PublicPortfoliosPage /> : null}
+      {route.type === 'landing' ? <LandingPage sessionUser={sessionUser} /> : null}
+    </PublicLayout>
+  );
 }
 
 function AuthenticatedApp({ sessionUser, onLogout }) {

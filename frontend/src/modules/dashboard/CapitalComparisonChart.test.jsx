@@ -31,7 +31,7 @@ describe('CapitalComparisonChart', () => {
     );
 
     expect(screen.getByText('Pertumbuhan Modal vs Aset')).toBeInTheDocument();
-    expect(screen.getByText(/Selisih saat ini/)).toBeInTheDocument();
+    expect(screen.getByText(/Profit\/Loss/)).toBeInTheDocument();
     expect(screen.getByText('Total Modal Disetor')).toBeInTheDocument();
     expect(screen.getByText('Total Aset Value')).toBeInTheDocument();
     expect(screen.getByTestId('line-chart')).toBeInTheDocument();

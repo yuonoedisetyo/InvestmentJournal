@@ -123,8 +123,8 @@ export default function PositionsTable({
             <tr>
               <th>No</th>
               <th>Kode</th>
-              <th>Market Value</th>
-              <th>Unrealized P/L</th>
+              <th className="position-market-value">Market Value</th>
+              <th className="position-unrealized-pnl">Unrealized P/L</th>
               <th>Lot</th>
               <th>Avg Price</th>
               <th>Last Price</th>
@@ -138,10 +138,10 @@ export default function PositionsTable({
               <tr key={item.stock_code}>
                 <td>{index + 1}</td>
                 <td>{item.stock_code}</td>
-                <td>
+                <td className="position-market-value">
                   {formatIDR(item.market_value)} ({formatPercent(getPortfolioShare(item.market_value, summary.marketValue))})
                 </td>
-                <td className={Number(item.unrealized_pnl) >= 0 ? 'profit' : 'loss'}>
+                <td className={`position-unrealized-pnl ${Number(item.unrealized_pnl) >= 0 ? 'profit' : 'loss'}`}>
                   {formatIDR(item.unrealized_pnl)} ({formatPercent(getUnrealizedPercent(item))})
                 </td>
                 <td>{item.total_shares / 100}</td>

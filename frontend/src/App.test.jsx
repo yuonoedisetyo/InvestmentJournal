@@ -8,6 +8,7 @@ const mockAuthApi = {
 };
 
 const mockPortfolioApi = {
+  listPublicPortfolios: vi.fn(),
   getPublicPortfolio: vi.fn(),
   listPositions: vi.fn(),
   cashBalance: vi.fn(),
@@ -101,6 +102,7 @@ describe('App', () => {
     window.history.pushState({}, '', '/');
 
     mockReadStoredAuthSession.mockReturnValue(null);
+    mockPortfolioApi.listPublicPortfolios.mockResolvedValue([]);
     mockUseInvestmentStore.mockReturnValue({
       portfolios: [],
       setPortfolios: vi.fn(),
@@ -117,9 +119,19 @@ describe('App', () => {
     });
   });
 
-  it('renders login screen and can register', async () => {
+  it('renders landing page without login', async () => {
+    const { default: App } = await import('./App');
+
+    render(<App />);
+
+    expect(screen.getByText(/Catat portfolio, uji valuasi DCF/)).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Login' })[0]).toHaveAttribute('href', '/login');
+  });
+
+  it('renders login screen on /login and can register', async () => {
     const { default: App } = await import('./App');
     mockAuthApi.register.mockResolvedValue({});
+    window.history.pushState({}, '', '/login');
 
     render(<App />);
 
@@ -150,6 +162,7 @@ describe('App', () => {
       token: 'token-123',
       user: { id: 1, name: 'Yedi', identity: 'yedi@example.com' },
     });
+    window.history.pushState({}, '', '/login');
 
     render(<App />);
 
@@ -173,6 +186,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Add Portfolio' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Input Transaksi' })).toBeInTheDocument();
     expect(screen.queryByText('TransactionForm')).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe('/app');
   });
 
   it('can switch to portfolio form page after login', async () => {
@@ -181,6 +195,7 @@ describe('App', () => {
       token: 'token-789',
       user: { id: 3, name: 'Raka', identity: 'raka@example.com' },
     });
+    window.history.pushState({}, '', '/login');
 
     render(<App />);
 
@@ -208,6 +223,7 @@ describe('App', () => {
       token: 'token-456',
       user: { id: 2, name: 'Dian', identity: 'dian@example.com' },
     });
+    window.history.pushState({}, '', '/login');
 
     render(<App />);
 
@@ -247,7 +263,14 @@ describe('App', () => {
       expect(mockAuthApi.me).toHaveBeenCalledTimes(1);
     });
 
-    expect(screen.getByText('Header Persisted User')).toBeInTheDocument();
+    expect(screen.getByText(/Catat portfolio, uji valuasi DCF/)).toBeInTheDocument();
+
+    window.history.pushState({}, '', '/app');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Header Persisted User')).toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByText('Logout Header'));
 
@@ -290,5 +313,15 @@ describe('App', () => {
     expect(screen.getByText('JournalTable ReadOnly')).toBeInTheDocument();
     expect(screen.queryByText('PortfolioSelector')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Input Transaksi' })).not.toBeInTheDocument();
+  });
+
+  it('renders public article detail route', async () => {
+    const { default: App } = await import('./App');
+    window.history.pushState({}, '', '/articles/memahami-margin-of-safety');
+
+    render(<App />);
+
+    expect(screen.getByText('Memahami Margin of Safety Sebelum Membeli Saham')).toBeInTheDocument();
+    expect(screen.getByText(/Margin of safety membantu/)).toBeInTheDocument();
   });
 });

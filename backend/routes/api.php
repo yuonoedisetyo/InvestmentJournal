@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::get('/public/portfolios', [PortfolioController::class, 'publicIndex']);
 Route::get('/public/portfolios/{shareToken}', [PortfolioController::class, 'publicShow']);
 
 Route::middleware('auth.token')->group(function (): void {

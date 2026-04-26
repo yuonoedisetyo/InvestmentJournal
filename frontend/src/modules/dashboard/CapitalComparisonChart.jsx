@@ -30,21 +30,31 @@ export default function CapitalComparisonChart({ data, capitalSummary = null, su
           total_asset_value: currentAsetValue,
         },
       ];
+  const largestYAxisValue = chartData.reduce(
+    (largest, item) =>
+      Math.max(
+        largest,
+        Math.abs(Number(item.total_modal_disetor ?? 0)),
+        Math.abs(Number(item.total_asset_value ?? 0))
+      ),
+    0
+  );
+  const yAxisWidth = Math.min(150, Math.max(80, String(Math.round(largestYAxisValue)).length * 8 + 28));
 
   return (
     <section className="panel chart-panel">
       <div className="panel-head">
         <h2>Pertumbuhan Modal vs Aset</h2>
         <p>
-          Selisih saat ini: {formatIDR(difference)}
+          Profit/Loss: {formatIDR(difference)}
         </p>
       </div>
       <div className="chart-wrapper">
         <ResponsiveContainer width="100%" height={320}>
-          <LineChart data={chartData}>
+          <LineChart data={chartData} margin={{ top: 8, right: 18, left: 12, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#d6d3d1" />
             <XAxis dataKey="date" tickFormatter={formatCompactDate} stroke="#44403c" />
-            <YAxis stroke="#44403c" />
+            <YAxis stroke="#44403c" width={yAxisWidth} tickMargin={8} />
             <Tooltip
               formatter={(value) => formatIDR(Number(value ?? 0))}
               labelFormatter={(label) => `Tanggal: ${label}`}

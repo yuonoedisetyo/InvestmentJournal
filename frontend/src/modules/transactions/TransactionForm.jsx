@@ -449,7 +449,7 @@ export default function TransactionForm({ portfolioId, onSubmit, onBulkComplete 
         <h2>Input Transaksi</h2>
       </div>
 
-      <label className="full-width">
+      {/* <label className="full-width">
         Mode Input
         <select value={entryMode} onChange={(event) => setEntryMode(event.target.value)}>
           {modeOptions.map((option) => (
@@ -458,7 +458,7 @@ export default function TransactionForm({ portfolioId, onSubmit, onBulkComplete 
             </option>
           ))}
         </select>
-      </label>
+      </label> */}
 
       {entryMode === 'single' ? (
         <>

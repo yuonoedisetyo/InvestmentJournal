@@ -21,6 +21,11 @@ class PortfolioController extends Controller
         return response()->json($this->portfolioService->listByUser($this->resolveUserId($request)));
     }
 
+    public function publicIndex(): JsonResponse
+    {
+        return response()->json($this->portfolioService->listPublic());
+    }
+
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([

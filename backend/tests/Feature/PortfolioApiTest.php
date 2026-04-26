@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\CashMutation;
+use App\Models\Portfolio;
 use App\Models\PortfolioPosition;
 use App\Models\StockPrice;
 use App\Models\User;
@@ -209,5 +210,42 @@ class PortfolioApiTest extends TestCase
 
         $this->getJson("/api/public/portfolios/{$shareToken}")
             ->assertStatus(404);
+    }
+
+    public function test_it_can_list_public_portfolios_without_authentication(): void
+    {
+        $owner = User::factory()->create(['name' => 'Public Owner']);
+        $otherOwner = User::factory()->create(['name' => 'Private Owner']);
+
+        $publicPortfolio = Portfolio::query()->create([
+            'user_id' => $owner->id,
+            'name' => 'Public Income',
+            'currency' => 'IDR',
+            'initial_capital' => '0.0000',
+            'is_public' => true,
+            'share_token' => 'public-income-token',
+            'is_active' => true,
+        ]);
+
+        Portfolio::query()->create([
+            'user_id' => $otherOwner->id,
+            'name' => 'Private Only',
+            'currency' => 'IDR',
+            'initial_capital' => '0.0000',
+            'is_public' => false,
+            'share_token' => 'private-only-token',
+            'is_active' => true,
+        ]);
+
+        $this->getJson('/api/public/portfolios')
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $publicPortfolio->id)
+            ->assertJsonPath('0.name', 'Public Income')
+            ->assertJsonPath('0.share_token', 'public-income-token')
+            ->assertJsonPath('0.owner_name', 'Public Owner')
+            ->assertJsonStructure([
+                '*' => ['id', 'name', 'currency', 'share_token', 'owner_name', 'updated_at'],
+            ]);
     }
 }

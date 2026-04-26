@@ -74,6 +74,10 @@ export const portfolioApi = {
     const { data } = await api.get('/portfolios');
     return data;
   },
+  async listPublicPortfolios() {
+    const { data } = await api.get('/public/portfolios');
+    return data;
+  },
   async getPublicPortfolio(shareToken, params) {
     const { data } = await api.get(`/public/portfolios/${shareToken}`, { params });
     return data;
