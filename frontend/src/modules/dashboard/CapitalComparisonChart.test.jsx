@@ -34,6 +34,10 @@ describe('CapitalComparisonChart', () => {
     expect(screen.getByText(/Profit\/Loss/)).toBeInTheDocument();
     expect(screen.getByText('Total Modal Disetor')).toBeInTheDocument();
     expect(screen.getByText('Total Aset Value')).toBeInTheDocument();
+    expect(screen.getByText('Total Modal Disetor Terakhir')).toBeInTheDocument();
+    expect(screen.getByText('Total Aset Value Terakhir')).toBeInTheDocument();
+    expect(screen.getByText((text) => text.replace(/\s/g, '') === 'Rp1.200.000')).toBeInTheDocument();
+    expect(screen.getByText((text) => text.replace(/\s/g, '') === 'Rp1.235.000')).toBeInTheDocument();
     expect(screen.getByTestId('line-chart')).toBeInTheDocument();
   });
 });

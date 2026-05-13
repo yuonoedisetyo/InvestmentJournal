@@ -26,6 +26,7 @@ export default function JournalTable({ data, onEdit, onDelete, onOpenTransaction
       : true;
     return matchesType && matchesStockCode;
   });
+  const hasActiveFilter = Boolean(typeFilter || stockCodeFilter);
 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -103,9 +104,9 @@ export default function JournalTable({ data, onEdit, onDelete, onOpenTransaction
         ) : null}
       </div>
       {data.length > 0 ? (
-        <div className="panel-head">
-          <label>
-            Filter Jenis
+        <div className="journal-filter-bar">
+          <label className="journal-filter-field">
+            <span>Filter Jenis</span>
             <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
               <option value="">Semua</option>
               {typeOptions.map((type) => (
@@ -115,8 +116,8 @@ export default function JournalTable({ data, onEdit, onDelete, onOpenTransaction
               ))}
             </select>
           </label>
-          <label>
-            Filter Stock Code
+          <label className="journal-filter-field">
+            <span>Filter Stock Code</span>
             <input
               type="text"
               value={stockCodeFilter}
@@ -124,6 +125,18 @@ export default function JournalTable({ data, onEdit, onDelete, onOpenTransaction
               placeholder="Contoh: BBCA"
             />
           </label>
+          {hasActiveFilter ? (
+            <button
+              type="button"
+              className="table-btn table-btn-muted journal-filter-reset"
+              onClick={() => {
+                setTypeFilter('');
+                setStockCodeFilter('');
+              }}
+            >
+              Reset Filter
+            </button>
+          ) : null}
         </div>
       ) : null}
       {filteredData.length > 0 ? (
@@ -135,22 +148,24 @@ export default function JournalTable({ data, onEdit, onDelete, onOpenTransaction
             <div className="journal-actions">
               <button
                 type="button"
-                className="table-btn table-btn-muted"
+                className="table-btn table-btn-muted table-btn-icon"
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={safePage === 1}
+                aria-label="Sebelumnya"
               >
-                Sebelumnya
+                &lt;
               </button>
               <span>
                 Halaman {safePage} / {totalPages}
               </span>
               <button
                 type="button"
-                className="table-btn table-btn-muted"
+                className="table-btn table-btn-muted table-btn-icon"
                 onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={safePage === totalPages}
+                aria-label="Berikutnya"
               >
-                Berikutnya
+                &gt;
               </button>
             </div>
           ) : null}

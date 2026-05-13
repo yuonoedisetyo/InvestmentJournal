@@ -743,6 +743,33 @@ h3 {
   min-height: 300px;
 }
 
+.chart-latest-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.chart-latest-summary > div {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.chart-latest-summary span {
+  display: block;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.chart-latest-summary strong {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
 .table-wrapper {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -778,6 +805,54 @@ td input {
   font: inherit;
 }
 
+.journal-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(180px, 260px) auto;
+  align-items: end;
+  gap: 12px;
+  margin: 6px 0 12px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.journal-filter-field {
+  display: grid;
+  gap: 6px;
+}
+
+.journal-filter-field span {
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.journal-filter-field input,
+.journal-filter-field select {
+  min-height: 38px;
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  padding: 8px 10px;
+}
+
+.journal-filter-field input:focus,
+.journal-filter-field select:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+  outline: none;
+}
+
+.journal-filter-reset {
+  min-height: 38px;
+  margin-right: 0;
+}
+
 .journal-actions {
   white-space: nowrap;
 }
@@ -790,6 +865,17 @@ td input {
   font: inherit;
   cursor: pointer;
   margin-right: 6px;
+}
+
+.table-btn-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .table-btn:disabled {
@@ -846,6 +932,10 @@ td input {
   }
 
   .transaction-form {
+    grid-template-columns: 1fr;
+  }
+
+  .journal-filter-bar {
     grid-template-columns: 1fr;
   }
 
@@ -953,5 +1043,9 @@ td input {
 
   .chart-panel .chart-wrapper {
     min-height: 240px;
+  }
+
+  .chart-latest-summary {
+    grid-template-columns: 1fr;
   }
 }

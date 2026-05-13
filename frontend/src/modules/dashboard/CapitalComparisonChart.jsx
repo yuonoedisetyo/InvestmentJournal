@@ -10,6 +10,11 @@ import {
 } from 'recharts';
 import { formatCompactDate, formatIDR } from '../../utils/format';
 
+const formatYAxisNominal = (value) =>
+  new Intl.NumberFormat('id-ID', {
+    maximumFractionDigits: 0,
+  }).format(Number(value ?? 0));
+
 export default function CapitalComparisonChart({ data, capitalSummary = null, summary }) {
   const series = Array.isArray(data) ? data : Array.isArray(data?.series) ? data.series : [];
   const currentModalDisetor =
@@ -39,7 +44,8 @@ export default function CapitalComparisonChart({ data, capitalSummary = null, su
       ),
     0
   );
-  const yAxisWidth = Math.min(150, Math.max(80, String(Math.round(largestYAxisValue)).length * 8 + 28));
+  const largestYAxisLabel = formatYAxisNominal(largestYAxisValue);
+  const yAxisWidth = Math.min(150, Math.max(80, largestYAxisLabel.length * 8 + 28));
 
   return (
     <section className="panel chart-panel">
@@ -54,7 +60,7 @@ export default function CapitalComparisonChart({ data, capitalSummary = null, su
           <LineChart data={chartData} margin={{ top: 8, right: 18, left: 12, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#d6d3d1" />
             <XAxis dataKey="date" tickFormatter={formatCompactDate} stroke="#44403c" />
-            <YAxis stroke="#44403c" width={yAxisWidth} tickMargin={8} />
+            <YAxis stroke="#44403c" width={yAxisWidth} tickMargin={8} tickFormatter={formatYAxisNominal} />
             <Tooltip
               formatter={(value) => formatIDR(Number(value ?? 0))}
               labelFormatter={(label) => `Tanggal: ${label}`}
@@ -78,6 +84,16 @@ export default function CapitalComparisonChart({ data, capitalSummary = null, su
             />
           </LineChart>
         </ResponsiveContainer>
+      </div>
+      <div className="chart-latest-summary" aria-label="Nominal terakhir modal dan aset">
+        <div>
+          <span>Total Modal Disetor</span>
+          <strong>{formatIDR(currentModalDisetor)}</strong>
+        </div>
+        <div>
+          <span>Total Aset Value</span>
+          <strong>{formatIDR(currentAsetValue)}</strong>
+        </div>
       </div>
     </section>
   );
