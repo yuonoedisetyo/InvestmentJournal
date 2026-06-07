@@ -14,7 +14,6 @@ export default function PublicNav({ sessionUser }) {
       </a>
 
       <nav className="public-nav-links" aria-label="Navigasi publik">
-        <a href={resolveHref('/articles')}>Artikel</a>
         <a href={resolveHref('/public-portfolios')}>Portfolio Public</a>
         <a href={resolveHref('/#about')}>Tentang Kami</a>
       </nav>
