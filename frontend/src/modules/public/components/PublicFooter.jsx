@@ -7,7 +7,6 @@ export default function PublicFooter() {
       </div>
       <div className="public-footer-links">
         <a href="/articles">Artikel</a>
-        <a href="/calculator/dcf">Kalkulator DCF</a>
         <a href="/public-portfolios">Portfolio Public</a>
         <a href="/login">Login</a>
       </div>

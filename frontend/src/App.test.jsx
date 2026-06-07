@@ -125,6 +125,7 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByText(/Catat portfolio, uji valuasi DCF/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Kalkulator DCF' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Login' })[0]).toHaveAttribute('href', '/login');
   });
 
