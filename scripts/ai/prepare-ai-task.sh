@@ -49,6 +49,16 @@ cd "$REPO_ROOT"
 
 gh auth status >/dev/null 2>&1 || die "GitHub CLI is not authenticated. Run: gh auth login"
 
+CURRENT_BRANCH="$(git branch --show-current)"
+[[ -n "$CURRENT_BRANCH" ]] || die "Detached HEAD is not supported."
+
+DEFAULT_BRANCH="$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || true)"
+[[ -n "$DEFAULT_BRANCH" ]] || DEFAULT_BRANCH="main"
+
+if [[ "$CURRENT_BRANCH" != "$DEFAULT_BRANCH" ]]; then
+  die "Prepare AI task from ${DEFAULT_BRANCH}. Current branch is ${CURRENT_BRANCH}."
+fi
+
 if [[ -n "$(git status --porcelain)" ]]; then
   git status --short
   die "Worktree is not clean. Commit, stash, or discard local changes before preparing a new AI task."
