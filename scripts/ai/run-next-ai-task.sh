@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/ai/run-next-ai-task.sh [--issue <number>] [--limit <number>] [--dry-run]
+  scripts/ai/run-next-ai-task.sh [--issue <number>] [--limit <number>] [--dry-run] [--allow-empty]
 
 Environment:
   AI_AGENT_COMMAND   Required. Shell command that edits code for the task.
@@ -17,7 +17,7 @@ Environment:
   AI_COMMIT_MESSAGE  Optional. Commit message. Supports {issue}.
 
 Examples:
-  AI_AGENT_COMMAND='codex exec --full-auto --prompt-file {prompt}' scripts/ai/run-next-ai-task.sh
+  AI_AGENT_COMMAND='codex exec --ask-for-approval never --sandbox workspace-write - < {prompt}' scripts/ai/run-next-ai-task.sh
   AI_AGENT_COMMAND='my-agent {prompt}' AI_VERIFY_COMMAND='cd frontend && npm test' scripts/ai/run-next-ai-task.sh --issue 12
 
 What it does:
@@ -130,6 +130,7 @@ unsafe_changes() {
 
 LIMIT=20
 DRY_RUN=0
+ALLOW_EMPTY=0
 ISSUE_NUMBER=""
 
 while [[ $# -gt 0 ]]; do
@@ -146,6 +147,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dry-run)
       DRY_RUN=1
+      ;;
+    --allow-empty)
+      ALLOW_EMPTY=1
       ;;
     -h|--help)
       usage
@@ -181,7 +185,14 @@ if [[ -z "$ISSUE_NUMBER" ]]; then
   ISSUE_NUMBER="$(select_issue "$LIMIT")"
 fi
 
-[[ -n "$ISSUE_NUMBER" ]] || die "No ready AI tasks found."
+if [[ -z "$ISSUE_NUMBER" ]]; then
+  if [[ "$ALLOW_EMPTY" == "1" ]]; then
+    echo "No ready AI tasks found."
+    exit 0
+  fi
+
+  die "No ready AI tasks found."
+fi
 validate_issue_ready "$ISSUE_NUMBER"
 
 TITLE="$(gh issue view "$ISSUE_NUMBER" --json title --jq '.title')"
