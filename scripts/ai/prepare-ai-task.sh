@@ -68,9 +68,28 @@ TITLE="$(gh issue view "$ISSUE_NUMBER" --json title --jq '.title')" || die "Unab
 BODY="$(gh issue view "$ISSUE_NUMBER" --json body --jq '.body // ""')"
 URL="$(gh issue view "$ISSUE_NUMBER" --json url --jq '.url')"
 STATE="$(gh issue view "$ISSUE_NUMBER" --json state --jq '.state')"
+LABEL_NAMES="$(gh issue view "$ISSUE_NUMBER" --json labels --jq '[.labels[].name] | join(",")')"
 LABELS="$(gh issue view "$ISSUE_NUMBER" --json labels --jq '[.labels[].name] | join(", ")')"
 
 [[ "$STATE" == "OPEN" ]] || die "Issue #$ISSUE_NUMBER is not open. Current state: $STATE"
+
+if [[ "${ALLOW_NOT_READY:-0}" != "1" ]]; then
+  case ",${LABEL_NAMES}," in
+    *,ai-task,*) ;;
+    *) die "Issue #$ISSUE_NUMBER must have label ai-task. Set ALLOW_NOT_READY=1 to bypass." ;;
+  esac
+
+  case ",${LABEL_NAMES}," in
+    *,ai-ready,*) ;;
+    *) die "Issue #$ISSUE_NUMBER must have label ai-ready. Set ALLOW_NOT_READY=1 to bypass." ;;
+  esac
+
+  case ",${LABEL_NAMES}," in
+    *,ai-in-progress,*|*,blocked,*|*,needs-review,*)
+      die "Issue #$ISSUE_NUMBER is not ready to start. Current labels: ${LABELS:-none}"
+      ;;
+  esac
+fi
 
 SLUG="$(slugify "$TITLE")"
 [[ -n "$SLUG" ]] || SLUG="task"
