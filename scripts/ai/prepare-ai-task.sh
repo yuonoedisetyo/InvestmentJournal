@@ -124,6 +124,7 @@ ${BODY}
 PROMPT
 
 gh issue comment "$ISSUE_NUMBER" --body "AI task preparation started on branch \`${BRANCH}\`. Local prompt: \`${PROMPT_FILE}\`."
+gh issue edit "$ISSUE_NUMBER" --add-label ai-in-progress >/dev/null
 
 cat <<DONE
 Prepared AI task #${ISSUE_NUMBER}
