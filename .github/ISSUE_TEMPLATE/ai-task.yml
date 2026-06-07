@@ -1,0 +1,135 @@
+name: AI Task
+description: Task yang siap dikerjakan oleh AI coding agent lewat branch dan Pull Request.
+title: "[AI Task] "
+labels:
+  - ai-task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gunakan template ini untuk task yang akan dikerjakan dari laptop rumah oleh Codex atau AI coding agent.
+
+        Pastikan scope, acceptance criteria, dan verification cukup jelas sebelum menambahkan label `ai-ready`.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Pilih area utama yang akan disentuh.
+      options:
+        - backend
+        - frontend
+        - mobile
+        - docs
+        - planning
+        - cross-stack
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Jelaskan kondisi saat ini, file terkait, atau dokumen yang perlu dibaca.
+      placeholder: |
+        Project: Investment Journal
+        Related files:
+        Related docs:
+        Current behavior:
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: Jelaskan hasil akhir yang diinginkan.
+      placeholder: |
+        User bisa...
+        Developer bisa...
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Item yang boleh dikerjakan oleh AI.
+      placeholder: |
+        - Ubah...
+        - Tambah...
+        - Update test...
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of Scope
+      description: Item yang tidak boleh disentuh dalam task ini.
+      placeholder: |
+        - Jangan ubah...
+        - Jangan refactor...
+        - Jangan sentuh...
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Kriteria selesai yang bisa dicek.
+      placeholder: |
+        - [ ] Endpoint/halaman/fitur melakukan...
+        - [ ] Behaviour lama tetap...
+        - [ ] Error state...
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Command test/build/manual check yang wajib dijalankan.
+      placeholder: |
+        Backend:
+        - docker compose exec app php artisan test
+
+        Frontend:
+        - cd frontend && npm test
+        - cd frontend && npm run build
+
+        Mobile:
+        - cd mobile && npm test
+
+        Manual:
+        -
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Batasan wajib untuk agent.
+      value: |
+        - Jangan commit langsung ke `main` atau `master`.
+        - Buat branch baru dengan format `ai/<issue-number>-<slug>`.
+        - Buat Pull Request untuk review.
+        - Jangan commit `.env`, credentials, tokens, secrets, atau local database dumps.
+        - Jangan edit `backend_blueprint/`, `backend_custom/`, atau `frontend/dist/` kecuali eksplisit diminta.
+    validations:
+      required: true
+
+  - type: textarea
+    id: risk_notes
+    attributes:
+      label: Risk Notes
+      description: Tandai risiko yang perlu diperhatikan saat review.
+      placeholder: |
+        Financial logic risk:
+        Database migration risk:
+        Backward compatibility risk:
+        Manual review focus:
+    validations:
+      required: false

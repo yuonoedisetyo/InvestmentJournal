@@ -1,0 +1,3 @@
+# Local AI workflow artifacts
+.ai/runs/
+.ai/local.env
