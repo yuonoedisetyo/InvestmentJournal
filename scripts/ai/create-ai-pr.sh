@@ -120,6 +120,8 @@ git push -u origin "$CURRENT_BRANCH"
 PR_URL="$(gh pr create --title "$PR_TITLE" --body-file "$BODY_FILE" --base "$DEFAULT_BRANCH" --head "$CURRENT_BRANCH")"
 
 gh issue comment "$ISSUE_NUMBER" --body "Pull Request is ready for review: ${PR_URL}"
+gh issue edit "$ISSUE_NUMBER" --add-label needs-review >/dev/null
+gh issue edit "$ISSUE_NUMBER" --remove-label ai-in-progress >/dev/null 2>&1 || true
 
 cat <<DONE
 Created Pull Request for issue #${ISSUE_NUMBER}
