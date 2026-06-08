@@ -15,6 +15,7 @@ export default function PublicNav({ sessionUser }) {
 
       <nav className="public-nav-links" aria-label="Navigasi publik">
         <a href={resolveHref('/#about')}>Tentang Kami</a>
+        <a href={resolveHref('/calculator/dcf')}>Kalkulator DCF</a>
       </nav>
 
       <a className="public-nav-cta" href={sessionUser ? '/app' : '/login'}>
