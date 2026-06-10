@@ -128,6 +128,19 @@ unsafe_changes() {
   '
 }
 
+clean_generated_outputs() {
+  local path
+
+  # Vite rewrites tracked frontend/dist assets during build. Keep build as a
+  # verification step, but do not let generated output enter AI task commits.
+  git restore frontend/dist >/dev/null 2>&1 || true
+
+  while IFS= read -r path; do
+    [[ -n "$path" ]] || continue
+    rm -f "$path"
+  done < <(git status --porcelain frontend/dist | awk '$1 == "??" {print $2}')
+}
+
 LIMIT=20
 DRY_RUN=0
 ALLOW_EMPTY=0
@@ -268,6 +281,8 @@ if [[ -n "$VERIFY_COMMAND" ]]; then
     die "Verification command failed with exit code ${VERIFY_STATUS}."
   fi
 fi
+
+clean_generated_outputs
 
 BAD_PATHS="$(unsafe_changes)"
 if [[ -n "$BAD_PATHS" ]]; then
